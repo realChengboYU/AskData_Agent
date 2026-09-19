@@ -121,7 +121,7 @@ export default function Chat() {
         <div className="chat">
           <header className="chat-head">
             <div className="chat-brand">
-              <span className="chat-mark">◆</span>
+              <img className="chat-mark" src="/dog.png" alt="DeepData" />
               <span className="chat-name deepdata-word">deepdata</span>
             </div>
             <div className="chat-head-right">

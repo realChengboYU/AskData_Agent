@@ -30,8 +30,11 @@
   gap: 10px;
 }
 .chat-mark {
-  color: #2563eb;
-  font-size: 20px;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 1px 5px rgba(37, 99, 235, 0.28);
 }
 .chat-name {
   font-size: 19px;

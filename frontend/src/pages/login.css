@@ -30,8 +30,12 @@
 }
 
 .brand-mark {
-  font-size: 20px;
-  color: #93c5fd;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  object-fit: cover;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 3px 14px rgba(31, 82, 218, 0.4);
 }
 
 .brand-name {

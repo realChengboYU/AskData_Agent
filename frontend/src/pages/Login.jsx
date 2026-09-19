@@ -47,7 +47,7 @@ export default function Login() {
 
         <div className="brand-inner">
           <div className="brand-head">
-            <span className="brand-mark">◆</span>
+            <img className="brand-mark" src="/dog.png" alt="DeepData" />
             <span className="brand-name deepdata-word">deepdata</span>
           </div>
 
