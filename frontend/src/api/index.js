@@ -6,6 +6,11 @@ const api = axios.create({
   timeout: 180000,
 })
 
+// 登录：payload = { email: string, password: string }
+export function login(payload) {
+  return api.post('/login', payload).then((res) => res.data)
+}
+
 // 向工具提问：payload = { question: string, session_id?: string }
 export function askQuestion(payload) {
   return api.post('/ask', payload).then((res) => res.data)

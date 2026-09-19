@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { User, Lock, Unlock } from '@element-plus/icons-vue'
+import { login } from '../api'
 
 const router = useRouter()
 
@@ -28,12 +29,22 @@ const rules = {
 async function submit() {
   await formRef.value.validate().catch(() => Promise.reject())
   loading.value = true
-  // TODO: 接入 FastAPI 后端的真实认证接口
-  setTimeout(() => {
-    loading.value = false
-    ElMessage.success('登录成功（演示）')
+  try {
+    const data = await login({
+      email: form.value.email,
+      password: form.value.password,
+    })
+    if (data?.token) {
+      localStorage.setItem('askdata_token', data.token)
+      localStorage.setItem('askdata_user', JSON.stringify(data.user ?? {}))
+    }
+    ElMessage.success(`欢迎回来，${data?.user?.name ?? 'AskData'}！`)
     router.push('/ask')
-  }, 900)
+  } catch (err) {
+    ElMessage.error(err?.response?.data?.detail ?? '登录失败，请稍后重试')
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

@@ -16,8 +16,8 @@ AskData 是一个**自然语言数据问答工具**：用中文描述你想知�
 | 层 | 技术 |
 |----|------|
 | 前端 | Vue 3 · Vite · Pinia · vue-router · Element Plus · Axios |
-| 后端 | FastAPI (Python) — 拟建 |
-| 数据 | 待接数据源（SQL / CSV / API） |
+| 后端 | FastAPI (Python) · uvicorn · PyJWT |
+| 数据 | 演示数据集（销售 / 留存），后续接真实源 |
 
 ## 项目结构 / Structure
 
@@ -26,28 +26,53 @@ AskData_Agent/
 ├─ frontend/          # Vue 3 + Vite 前端
 │  └─ src/
 │     ├─ views/
-│     │  ├─ LoginView.vue   # 登录页
-│     │  └─ AskView.vue     # 提问页
-│     ├─ api/index.js       # Axios 封装（/api/ask）
+│     │  ├─ LoginView.vue   # 登录页（蓝色主题 + 光晕按钮）
+│     │  └─ AskView.vue     # 提问页（回答 + 推理 + SQL + 图表）
+│     ├─ api/index.js       # Axios 封装（/api/login, /api/ask）
 │     └─ router/index.js
-└─ backend/           # FastAPI 后端（待建）
+└─ backend/           # FastAPI 后端
+   └─ app/
+      ├─ main.py            # 应用入口 + CORS + /api/health
+      ├─ routers/
+      │  ├─ auth.py         # POST /api/login（JWT）
+      │  └─ ask.py          # POST /api/ask
+      ├─ services/
+      │  └─ ask_engine.py   # 演示问答引擎（可追溯/可解释）
+      └─ schemas.py
 ```
 
 ## 本地开发 / Develop
 
 ```bash
-# 前端
+# 后端（终端 1）
+cd backend
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+
+# 前端（终端 2）
 cd frontend
 pnpm install
 pnpm dev            # http://127.0.0.1:5173
 ```
 
+演示账号：`demo@askdata.dev` / `demo123456`
+
+## 接口 / API
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/health` | 健康检查 |
+| POST | `/api/login` | 登录，返回 JWT + 用户信息 |
+| POST | `/api/ask` | 提问，返回 `{ answer, reasoning, sql, chart }` |
+
 ## 下一步 / Roadmap
 
 - [x] 前端登录页（蓝色主题 + 动态极光 + 艺术字 + 光晕按钮）
-- [ ] FastAPI 后端 `/api/ask` 问答接口
-- [ ] 数据源接入
-- [ ] 登录鉴权
+- [x] FastAPI 后端 `/api/login` + `/api/ask`（可追溯、可解释的演示引擎）
+- [ ] 接真实数据源 / LLM 问答
+- [ ] 路由守卫 + 会话保持
+- [ ] Docker / CI 部署
 
 ---
 

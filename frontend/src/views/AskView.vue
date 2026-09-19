@@ -4,20 +4,30 @@ import { askQuestion } from '../api'
 
 const question = ref('')
 const status = ref('idle') // idle | loading | success | error
-const answer = ref('')
+const result = ref(null) // { answer, reasoning, sql, chart }
 const errorMsg = ref('')
+
+function formatNum(n) {
+  return typeof n === 'number' ? n.toLocaleString('zh-CN') : n
+}
+
+function barWidth(v, values) {
+  const nums = (values || []).map(Number)
+  const max = Math.max(...nums)
+  return max ? `${Math.round((Number(v) / max) * 100)}%` : '0%'
+}
 
 async function submit() {
   const q = question.value.trim()
   if (!q || status.value === 'loading') return
 
   status.value = 'loading'
-  answer.value = ''
+  result.value = null
   errorMsg.value = ''
   try {
     const data = await askQuestion({ question: q })
     status.value = 'success'
-    answer.value = data?.answer ?? '（后端未返回答案内容）'
+    result.value = data ?? {}
   } catch (err) {
     status.value = 'error'
     errorMsg.value =
@@ -84,7 +94,50 @@ async function submit() {
               <span class="answer-mark">回答</span>
               <span class="answer-meta">针对你的提问</span>
             </div>
-            <pre class="answer-body">{{ answer }}</pre>
+            <p class="answer-text">{{ result?.answer }}</p>
+
+            <!-- 一键转图表 -->
+            <template v-if="result?.chart && result.chart.type === 'bar'">
+              <div class="chart-block">
+                <div class="chart-title">{{ result.chart.title }}</div>
+                <div class="bars">
+                  <div
+                    class="bar"
+                    v-for="(label, i) in result.chart.labels"
+                    :key="label"
+                  >
+                    <div class="bar-value">
+                      {{ formatNum(result.chart.values[i]) }} {{ result.chart.unit }}
+                    </div>
+                    <div class="bar-track">
+                      <div
+                        class="bar-fill"
+                        :style="{ width: barWidth(result.chart.values[i], result.chart.values) }"
+                      ></div>
+                    </div>
+                    <div class="bar-label">{{ label }}</div>
+                  </div>
+                </div>
+              </div>
+            </template>
+
+            <!-- 可追溯：推理过程 -->
+            <template v-if="result?.reasoning && result.reasoning.length">
+              <div class="trace">
+                <div class="trace-title">推理过程（可追溯）</div>
+                <ol class="trace-list">
+                  <li v-for="(s, i) in result.reasoning" :key="i">{{ s }}</li>
+                </ol>
+              </div>
+            </template>
+
+            <!-- 可追溯：生成 SQL -->
+            <template v-if="result?.sql">
+              <div class="trace">
+                <div class="trace-title">生成查询 SQL</div>
+                <pre class="sql-block">{{ result.sql }}</pre>
+              </div>
+            </template>
           </div>
         </template>
       </section>
@@ -187,13 +240,105 @@ async function submit() {
   font-size: 13px;
 }
 
-.answer-body {
+.answer-text {
   margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-family: inherit;
   font-size: 15px;
   line-height: 1.7;
   color: #1b2a4a;
+}
+
+.chart-block {
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 650;
+  color: #1e3a8a;
+  margin-bottom: 14px;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  min-height: 150px;
+}
+
+.bar {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar-value {
+  font-size: 12px;
+  color: #1e3a8a;
+  white-space: nowrap;
+}
+
+.bar-track {
+  width: 100%;
+  height: 96px;
+  background: #eff6ff;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.bar-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+  border-radius: 6px 6px 0 0;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bar-label {
+  font-size: 13px;
+  color: #334155;
+}
+
+.trace {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: #f8fbff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+}
+
+.trace-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: #2563eb;
+  margin-bottom: 10px;
+}
+
+.trace-list {
+  margin: 0;
+  padding-left: 20px;
+  color: #45536b;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.sql-block {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: #dbeafe;
+  background: #0f172a;
+  padding: 12px 14px;
+  border-radius: 8px;
 }
 </style>

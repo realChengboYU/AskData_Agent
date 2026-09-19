@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+pyproject.toml
+.env
+*.sqlite3
