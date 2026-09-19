@@ -87,11 +87,25 @@
   display: block;
   width: 100%;
   height: 96px;
+  overflow: visible;
+}
+
+.chart-grid line {
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 1;
 }
 
 .chart-line {
   stroke-dasharray: 1;
   stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 6px rgba(147, 197, 253, 0.55));
+}
+
+.chart-dot-glow {
+  fill: rgba(147, 197, 253, 0.32);
+}
+.chart-dot {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.7));
 }
 
 /* 光球 */
@@ -364,12 +378,26 @@
   .chart-line {
     animation: chart-draw 2.2s ease forwards;
   }
+  .chart-dot-glow {
+    animation: dot-pulse 2.6s ease-in-out infinite;
+  }
+  .chart-dot-glow:nth-of-type(2) {
+    animation-delay: 0.5s;
+  }
+  .chart-dot-glow:nth-of-type(3) {
+    animation-delay: 1s;
+  }
 }
 
 @keyframes chart-draw {
   to {
     stroke-dashoffset: 0;
   }
+}
+
+@keyframes dot-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
 }
 
 /* 响应式：窄屏上下堆叠 */

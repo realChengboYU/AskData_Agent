@@ -100,7 +100,7 @@ def _handle_retention(question: str) -> dict:
     }
 
 
-def answer_question(question: str) -> dict:
+def _template_answer_question(question: str) -> dict:
     q = (question or "").strip()
     if not q:
         return {
@@ -127,3 +127,13 @@ def answer_question(question: str) -> dict:
         "sql": None,
         "chart": None,
     }
+
+
+def answer_question(question: str) -> dict:
+    """对外入口：优先走 LangGraph + LangSmith 智能体，异常时降级为模板引擎。"""
+    try:
+        from app.services.agent import run_agent
+        return run_agent(question)
+    except Exception:
+        # 兜底：模板演示引擎（无 key / LLM 异常时也能返回完整结构）
+        return _template_answer_question(question)

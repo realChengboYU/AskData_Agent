@@ -70,10 +70,23 @@ export default function Login() {
           >
             <defs>
               <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="0.3" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+                <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.55" />
+                <stop offset="55%" stopColor="#3b82f6" stopOpacity="0.24" />
+                <stop offset="100%" stopColor="#1e3a8a" stopOpacity="0" />
+              </linearGradient>
+              <linearGradient id="stroke" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#93c5fd" />
+                <stop offset="55%" stopColor="#ffffff" />
+                <stop offset="100%" stopColor="#bfdbfe" />
               </linearGradient>
             </defs>
+
+            <g className="chart-grid">
+              <line x1="0" y1="24" x2="320" y2="24" />
+              <line x1="0" y1="48" x2="320" y2="48" />
+              <line x1="0" y1="72" x2="320" y2="72" />
+            </g>
+
             <path
               d="M0,78 C40,70 64,52 96,50 C128,48 152,60 184,42 C216,24 248,30 280,18 L320,12 L320,96 L0,96 Z"
               fill="url(#area)"
@@ -83,12 +96,17 @@ export default function Login() {
               pathLength="1"
               d="M0,78 C40,70 64,52 96,50 C128,48 152,60 184,42 C216,24 248,30 280,18 L320,12"
               fill="none"
-              stroke="#ffffff"
-              strokeOpacity="0.9"
-              strokeWidth="2"
+              stroke="url(#stroke)"
+              strokeWidth="2.5"
+              strokeLinecap="round"
             />
-            <circle cx="184" cy="42" r="3.5" fill="#ffffff" />
-            <circle cx="280" cy="18" r="3.5" fill="#ffffff" />
+
+            <circle className="chart-dot-glow" cx="96" cy="50" r="7" />
+            <circle className="chart-dot" cx="96" cy="50" r="3" fill="#ffffff" />
+            <circle className="chart-dot-glow" cx="184" cy="42" r="8" />
+            <circle className="chart-dot" cx="184" cy="42" r="3.5" fill="#ffffff" />
+            <circle className="chart-dot-glow" cx="280" cy="18" r="9" />
+            <circle className="chart-dot" cx="280" cy="18" r="4" fill="#ffffff" />
           </svg>
         </div>
       </aside>
