@@ -158,13 +158,13 @@
 }
 
 /* 思考中 */
-.thinking {
+.bubble-thinking {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: #64748b;
 }
-.thinking em {
+.bubble-thinking em {
   font-style: normal;
   font-size: 13px;
 }
