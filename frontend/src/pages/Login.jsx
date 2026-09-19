@@ -48,7 +48,7 @@ export default function Login() {
         <div className="brand-inner">
           <div className="brand-head">
             <span className="brand-mark">◆</span>
-            <span className="brand-name">AskData Agent</span>
+            <span className="brand-name deepdata-word">deepdata</span>
           </div>
 
           <h1 className="brand-pitch">用一句话，问清你的数据</h1>
@@ -183,7 +183,7 @@ export default function Login() {
           </div>
 
           <p className="trust">
-            <span className="lock">🔒</span> 由 AskData 安全连接你的数据源
+            <span className="lock">🔒</span> 由 DeepData 安全连接你的数据源
           </p>
           <p className="register">
             还没有账号？<a href="#" onClick={(e) => e.preventDefault()}>免费注册</a>

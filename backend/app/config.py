@@ -11,7 +11,7 @@ TOKEN_EXPIRE_MINUTES = 60 * 24  # 1 day
 DEMO_USERS = {
     "demo@askdata.dev": {
         "password": "demo123456",
-        "name": "AskData Demo",
+        "name": "DeepData Demo",
         "plan": "free",
     }
 }

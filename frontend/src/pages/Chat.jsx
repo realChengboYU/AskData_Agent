@@ -122,10 +122,10 @@ export default function Chat() {
           <header className="chat-head">
             <div className="chat-brand">
               <span className="chat-mark">◆</span>
-              <span className="chat-name">AskData Agent</span>
+              <span className="chat-name deepdata-word">deepdata</span>
             </div>
             <div className="chat-head-right">
-              <span className="chat-user">{user?.name || 'AskData'}</span>
+              <span className="chat-user">{user?.name || 'deepdata'}</span>
               <button className="chat-logout" onClick={logout}>退出</button>
             </div>
           </header>

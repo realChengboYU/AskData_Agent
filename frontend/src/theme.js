@@ -1,4 +1,4 @@
-// Ant Design 全局主题：对齐 AskData 蓝调色板
+// Ant Design 全局主题：对齐 DeepData 蓝调色板
 export const antdTheme = {
   token: {
     colorPrimary: '#2563eb',

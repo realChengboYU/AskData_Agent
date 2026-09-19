@@ -1,8 +1,8 @@
-# AskData_Agent · 问数工具
+# DeepData · 问数工具
 
 用一句话，问清你的数据。
 
-AskData 是一个**自然语言数据问答工具**：用中文描述你想知道的问题，它连接数据源、给出**可追溯、可解释**的答案，并把结果**一键转成图表**。
+DeepData 是一个**自然语言数据问答工具**：用中文描述你想知道的问题，它连接数据源、给出**可追溯、可解释**的答案，并把结果**一键转成图表**。
 
 ## 功能特性 / Features
 
@@ -77,4 +77,4 @@ pnpm dev            # http://127.0.0.1:5173
 
 ---
 
-© AskData_Agent · realChengboYU
+© DeepData · realChengboYU

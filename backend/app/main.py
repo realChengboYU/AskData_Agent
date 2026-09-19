@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import ask, auth
 
 app = FastAPI(
-    title="AskData API",
+    title="DeepData API",
     version="0.1.0",
     description="问数工具后端：自然语言提问 -> 可追溯、可解释的答案 + 图表。",
 )
@@ -24,4 +24,4 @@ app.include_router(ask.router)
 
 @app.get("/api/health", tags=["system"])
 def health() -> dict:
-    return {"status": "ok", "service": "askdata", "version": "0.1.0"}
+    return {"status": "ok", "service": "deepdata", "version": "0.1.0"}

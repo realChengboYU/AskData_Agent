@@ -35,9 +35,21 @@
 }
 
 .brand-name {
-  font-size: 19px;
+  font-size: 30px;
   font-weight: 650;
   letter-spacing: 0.01em;
+}
+
+
+.deepdata-word {
+  font-family: 'Poppins', 'ZCOOL QingKe HuangYou', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.brand-name.deepdata-word {
+  color: #ffffff;
+  text-shadow: 0 1px 18px rgba(37, 99, 235, 0.4);
 }
 
 .brand-pitch {

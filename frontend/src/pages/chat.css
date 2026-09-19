@@ -40,6 +40,18 @@
   color: #1e3a8a;
 }
 
+/* DeepData 艺术字——浅色头部用深蓝渐变 */
+.chat-name.deepdata-word {
+  font-family: 'Poppins', 'ZCOOL QingKe HuangYou', system-ui, sans-serif;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  background: linear-gradient(115deg, #1e3a8a 0%, #2563eb 50%, #3b82f6 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 4px rgba(37, 99, 235, 0.18));
+}
+
 .chat-head-right {
   display: flex;
   align-items: center;

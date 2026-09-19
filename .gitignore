@@ -26,3 +26,6 @@ Thumbs.db
 
 # dev screenshot artifacts
 *.png
+
+# favicon / product icon (keep tracked)
+!frontend/public/dog.png

@@ -1,9 +1,9 @@
 {
-  "name": "askdata-agent-frontend",
+  "name": "deepdata-agent-frontend",
   "private": true,
   "version": "0.2.0",
   "type": "module",
-  "description": "AskData Agent - 问数工具前端 (React + Vite + Tailwind + assistant-ui)",
+  "description": "DeepData - 问数工具前端 (React + Vite + Tailwind + assistant-ui)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
