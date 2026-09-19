@@ -15,7 +15,7 @@ AskData 是一个**自然语言数据问答工具**：用中文描述你想知�
 
 | 层 | 技术 |
 |----|------|
-| 前端 | React · Vite · Tailwind CSS · Ant Design · assistant-ui · axios |
+| 前端 | React · Vite · Tailwind CSS · Ant Design · assistant-ui 官方 Thread（shadcn + Base UI）· axios |
 | 后端 | FastAPI (Python) · uvicorn · PyJWT · LangGraph · LangSmith |
 | 数据 | 演示数据集（销售 / 留存），后续接真实源 |
 
