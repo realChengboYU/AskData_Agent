@@ -5,6 +5,15 @@
   background: #eff6ff;
 }
 
+.chat-body {
+  flex: 1;
+  min-height: 0;
+}
+.chat-body > .aui-root,
+.chat-body > * {
+  height: 100%;
+}
+
 .chat-head {
   display: flex;
   align-items: center;
