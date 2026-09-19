@@ -168,6 +168,32 @@
   color: #9aa9c4;
 }
 
+/* 密码可见切换 */
+.pwd-wrap {
+  position: relative;
+}
+.pwd-wrap .field {
+  padding-right: 46px;
+}
+.pwd-toggle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 44px;
+  width: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 16px;
+  cursor: pointer;
+}
+.pwd-toggle:hover {
+  color: #2563eb;
+}
+
 .form-row {
   display: flex;
   align-items: center;

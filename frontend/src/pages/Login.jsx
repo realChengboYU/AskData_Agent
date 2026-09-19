@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GoogleOutlined, GithubOutlined } from '@ant-design/icons'
+import { GoogleOutlined, GithubOutlined, EyeOutlined, EyeInvisibleOutlined } from '@ant-design/icons'
 import { login } from '../api'
 import './login.css'
 
@@ -11,6 +11,7 @@ export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(true)
+  const [showPwd, setShowPwd] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -110,15 +111,25 @@ export default function Login() {
             />
 
             <label className="field-label" htmlFor="password">密码</label>
-            <input
-              id="password"
-              className="field"
-              type="password"
-              placeholder="••••••••"
-              value={password}
-              autoComplete="current-password"
-              onChange={(e) => setPassword(e.target.value)}
-            />
+            <div className="pwd-wrap">
+              <input
+                id="password"
+                className="field"
+                type={showPwd ? 'text' : 'password'}
+                placeholder="••••••••"
+                value={password}
+                autoComplete="current-password"
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button
+                type="button"
+                className="pwd-toggle"
+                aria-label={showPwd ? '隐藏密码' : '显示密码'}
+                onClick={() => setShowPwd((s) => !s)}
+              >
+                {showPwd ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+              </button>
+            </div>
 
             <div className="form-row">
               <label className="check">
