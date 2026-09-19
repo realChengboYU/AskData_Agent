@@ -2,3 +2,6 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 pyjwt>=2.9
 pydantic>=2.9
+langchain>=1.4
+langgraph>=1.2
+langsmith>=0.13

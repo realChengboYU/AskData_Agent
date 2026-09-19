@@ -1,26 +1,27 @@
 {
   "name": "askdata-agent-frontend",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "AskData Agent - 问数工具前端 (Vue 3 + Vite + Element Plus)",
+  "description": "AskData Agent - 问数工具前端 (React + Vite + Tailwind + assistant-ui)",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview"
   },
   "dependencies": {
-    "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.20.0",
-    "element-plus": "^2.14.5",
-    "pinia": "^4.0.3",
-    "vue": "^3.5.43",
-    "vue-router": "^5.3.1"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4",
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "^6.0.9",
-    "unplugin-auto-import": "^21.1.0",
-    "unplugin-vue-components": "^32.1.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
     "vite": "^8.3.0"
   }
 }

@@ -15,7 +15,7 @@ AskData 是一个**自然语言数据问答工具**：用中文描述你想知�
 
 | 层 | 技术 |
 |----|------|
-| 前端 | Vue 3 · Vite · Pinia · vue-router · Element Plus · Axios |
+| 前端 | React · Vite · Tailwind CSS · axios |
 | 后端 | FastAPI (Python) · uvicorn · PyJWT |
 | 数据 | 演示数据集（销售 / 留存），后续接真实源 |
 
@@ -23,13 +23,13 @@ AskData 是一个**自然语言数据问答工具**：用中文描述你想知�
 
 ```text
 AskData_Agent/
-├─ frontend/          # Vue 3 + Vite 前端
+├─ frontend/          # React + Vite + Tailwind 前端
 │  └─ src/
-│     ├─ views/
-│     │  ├─ LoginView.vue   # 登录页（蓝色主题 + 光晕按钮）
-│     │  └─ AskView.vue     # 提问页（回答 + 推理 + SQL + 图表）
+│     ├─ pages/
+│     │  ├─ Login.jsx       # 登录页（蓝色主题 + 光晕按钮）
+│     │  └─ Chat.jsx        # 智能体对话页（回答 + 推理 + SQL + 图表）
 │     ├─ api/index.js       # Axios 封装（/api/login, /api/ask）
-│     └─ router/index.js
+│     └─ App.jsx / main.jsx
 └─ backend/           # FastAPI 后端
    └─ app/
       ├─ main.py            # 应用入口 + CORS + /api/health
@@ -68,9 +68,10 @@ pnpm dev            # http://127.0.0.1:5173
 
 ## 下一步 / Roadmap
 
-- [x] 前端登录页（蓝色主题 + 动态极光 + 艺术字 + 光晕按钮）
+- [x] 前端登录页（React · 蓝色主题 + 动态极光 + 艺术字 + 光晕按钮）
+- [x] 智能体对话页（React · 聊天气泡 + 可追溯推理 + SQL + 图表）
 - [x] FastAPI 后端 `/api/login` + `/api/ask`（可追溯、可解释的演示引擎）
-- [ ] 接真实数据源 / LLM 问答
+- [ ] 接真实数据源 / LLM 问答（LangGraph + LangSmith 追踪）
 - [ ] 路由守卫 + 会话保持
 - [ ] Docker / CI 部署
 

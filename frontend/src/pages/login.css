@@ -1,0 +1,353 @@
+.login {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  background: #eff6ff;
+}
+
+/* ===== 左侧品牌面板 ===== */
+.brand {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #1e3a8a 0%, #2563eb 55%, #3b82f6 100%);
+}
+
+.brand-inner {
+  position: relative;
+  z-index: 2;
+  width: min(420px, 82%);
+  color: #ffffff;
+}
+
+.brand-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 46px;
+}
+
+.brand-mark {
+  font-size: 20px;
+  color: #93c5fd;
+}
+
+.brand-name {
+  font-size: 19px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.brand-pitch {
+  margin: 0 0 14px;
+  font-family: 'ZCOOL QingKe HuangYou', system-ui, sans-serif;
+  font-size: 38px;
+  line-height: 1.28;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: #ffffff;
+  text-shadow: 0 2px 26px rgba(31, 82, 218, 0.45);
+}
+
+.brand-sub {
+  margin: 0 0 30px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #bfdbfe;
+}
+
+.features {
+  list-style: none;
+  margin: 0 0 42px;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+}
+
+.features li {
+  display: grid;
+  grid-template-columns: 4px 1fr;
+  column-gap: 12px;
+  align-items: center;
+  font-size: 15px;
+  color: #dbeafe;
+}
+
+.features li::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #60a5fa, #2563eb);
+}
+
+.brand-chart {
+  display: block;
+  width: 100%;
+  height: 96px;
+}
+
+.chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+}
+
+/* 光球 */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(70px);
+  opacity: 0.5;
+  z-index: 1;
+}
+.orb-1 { width: 340px; height: 340px; background: #3b82f6; top: -80px; left: -60px; }
+.orb-2 { width: 280px; height: 280px; background: #60a5fa; bottom: -60px; right: -40px; }
+.orb-3 { width: 300px; height: 300px; background: #93c5fd; top: 40%; left: 30%; }
+.orb-4 { width: 260px; height: 260px; background: #2563eb; bottom: 20%; left: 12%; }
+
+/* ===== 右侧表单 ===== */
+.panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+}
+
+.form-card {
+  width: min(400px, 100%);
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 18px;
+  padding: 40px 36px;
+  box-shadow: 0 12px 34px rgba(30, 58, 138, 0.1);
+}
+
+.form-title {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 650;
+  color: #1e3a8a;
+}
+
+.form-sub {
+  margin: 0 0 28px;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+}
+
+.field {
+  width: 100%;
+  height: 44px;
+  padding: 0 13px;
+  font-size: 15px;
+  color: #1e3a8a;
+  background: #f8fbff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  margin-bottom: 18px;
+  outline: none;
+  transition: border 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+.field:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.field::placeholder {
+  color: #9aa9c4;
+}
+
+.form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -4px 0 18px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.forgot {
+  font-size: 13px;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.form-error {
+  color: #e11d48;
+  font-size: 13px;
+  margin: -8px 0 14px;
+}
+
+/* 光晕按钮 */
+.cta {
+  position: relative;
+  width: 100%;
+}
+.cta-glow {
+  position: absolute;
+  inset: -4px -10px;
+  border-radius: 20px;
+  background: conic-gradient(
+    from 0deg,
+    #2563eb,
+    #3b82f6,
+    #60a5fa,
+    #93c5fd,
+    #3b82f6,
+    #2563eb
+  );
+  filter: blur(22px);
+  opacity: 0;
+  transform: scale(1.04);
+  transition: opacity 0.5s ease;
+  z-index: 0;
+}
+.cta:hover .cta-glow,
+.cta:focus-within .cta-glow {
+  opacity: 1;
+}
+.submit {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 46px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: #1e3a8a;
+  color: #ffffff;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.submit:hover {
+  background: #2563eb;
+}
+.submit:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 24px 0 18px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e7edf7;
+}
+
+.sso-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sso {
+  width: 100%;
+  height: 42px;
+  background: #ffffff;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a8a;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.sso:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #f8fbff;
+}
+
+.trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 20px 0 0;
+  color: #94a3b8;
+  font-size: 12.5px;
+}
+.trust .lock {
+  font-size: 12px;
+}
+
+.register {
+  text-align: center;
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 13.5px;
+}
+.register a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+/* ===== 入场动画（macOS 欢迎屏风格）===== */
+@media (prefers-reduced-motion: no-preference) {
+  .brand-inner > * {
+    animation: rise-in 1.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .brand-inner > *:nth-child(1) { animation-delay: 0.15s; }
+  .brand-inner > *:nth-child(2) { animation-delay: 0.45s; }
+  .brand-inner > *:nth-child(3) { animation-delay: 0.8s; }
+  .brand-inner > *:nth-child(4) { animation-delay: 1.1s; }
+  .brand-inner > *:nth-child(5) { animation-delay: 1.4s; }
+
+  .form-card {
+    animation: rise-in 1.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: 0.3s;
+  }
+
+  .orb-1 { animation: orb-drift-1 36s ease-in-out infinite; }
+  .orb-2 { animation: orb-drift-2 44s ease-in-out infinite; }
+  .orb-3 { animation: orb-drift-3 52s ease-in-out infinite; }
+  .orb-4 { animation: orb-drift-4 60s ease-in-out infinite; }
+
+  .chart-line {
+    animation: chart-draw 2.2s ease forwards;
+  }
+}
+
+@keyframes chart-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* 响应式：窄屏上下堆叠 */
+@media (max-width: 860px) {
+  .login {
+    grid-template-columns: 1fr;
+  }
+  .brand {
+    min-height: 420px;
+  }
+}

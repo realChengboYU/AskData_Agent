@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/* 蓝调色板（Tailwind v4 theme tokens） */
+@theme {
+  --color-navy: #1e3a8a;
+  --color-primary: #2563eb;
+  --color-bright: #3b82f6;
+  --color-soft: #60a5fa;
+  --color-sky: #93c5fd;
+  --color-mist: #eff6ff;
+  --color-ink: #1e3a8a;
+
+  --font-display: "ZCOOL QingKe HuangYou", system-ui, sans-serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-mist);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 品牌艺术字体 */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* 通用按钮 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 0;
+  cursor: pointer;
+  font-weight: 600;
+  border-radius: 0.875rem;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* 动态极光背景（左侧品牌面板） */
+@keyframes orb-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(30px, -20px) scale(1.12); }
+}
+@keyframes orb-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-26px, 18px) scale(1.08); }
+}
+@keyframes orb-drift-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(18px, 24px) scale(1.1); }
+}
+@keyframes orb-drift-4 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-20px, -14px) scale(1.06); }
+}
+
+/* macOS 欢迎屏入场 */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.97);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* 登录按钮背后光晕旋转 */
+@keyframes aurora-spin {
+  to {
+    transform: rotate(360deg) scale(1.04);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise-in 1.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  .cta-glow {
+    animation: aurora-spin 12s linear infinite;
+  }
+}
