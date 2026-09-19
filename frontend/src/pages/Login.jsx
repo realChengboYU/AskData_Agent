@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { GoogleOutlined, GithubOutlined } from '@ant-design/icons'
 import { login } from '../api'
 import './login.css'
 
@@ -144,8 +145,12 @@ export default function Login() {
           <div className="divider"><span>或</span></div>
 
           <div className="sso-row">
-            <button className="sso" type="button">继续使用 Google</button>
-            <button className="sso" type="button">继续使用 GitHub</button>
+            <button className="sso" type="button">
+              <GoogleOutlined /> 继续使用 Google
+            </button>
+            <button className="sso" type="button">
+              <GithubOutlined /> 继续使用 GitHub
+            </button>
           </div>
 
           <p className="trust">
