@@ -25,6 +25,7 @@ import type {
   ImageMessagePartComponent,
 } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 
 const extensionForMimeType = (mimeType?: string): string => {
   switch (mimeType) {
@@ -266,6 +267,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
   const triggerRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const { t } = useI18n();
 
   const handleOpen = useCallback(() => setIsOpen(true), []);
   const handleClose = useCallback(() => {
@@ -331,7 +333,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
         role="button"
         tabIndex={0}
         className="aui-image-zoom-trigger cursor-zoom-in"
-        aria-label="Click to zoom image"
+        aria-label={t("imageZoom")}
       >
         {children}
       </div>
@@ -344,7 +346,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
             aria-modal="true"
             className="aui-image-zoom-overlay fade-in animate-in fixed inset-0 z-50 flex items-center justify-center bg-black/80 duration-200"
             onClick={handleClose}
-            aria-label="Zoomed image"
+            aria-label={t("imageZoomed")}
           >
             <img
               data-slot="image-zoom-content"
@@ -359,7 +361,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
             <button
               ref={closeRef}
               type="button"
-              aria-label="Close zoomed image"
+              aria-label={t("imageCloseZoom")}
               onClick={(e) => {
                 e.stopPropagation();
                 handleClose();
@@ -376,6 +378,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
 }
 
 function ImageGenerating({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <div
       data-slot="image-generating"
@@ -385,7 +388,7 @@ function ImageGenerating({ className }: { className?: string }) {
       )}
     >
       <Loader2Icon className="text-muted-foreground size-8 animate-spin" />
-      <span className="sr-only">Generating image…</span>
+      <span className="sr-only">{t("imageGenerating")}</span>
     </div>
   );
 }
@@ -397,6 +400,7 @@ function ImageContentFilterError({
   className?: string;
   reason?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div
       data-slot="image-content-filter-error"
@@ -406,7 +410,7 @@ function ImageContentFilterError({
       )}
     >
       <ShieldAlertIcon className="text-muted-foreground size-8" />
-      <p className="text-sm font-medium">Image could not be generated</p>
+      <p className="text-sm font-medium">{t("imageGenerateFailed")}</p>
       {reason && <p className="text-muted-foreground text-xs">{reason}</p>}
     </div>
   );
@@ -428,6 +432,7 @@ function RegenerateButton({
   onRegenerate: () => void | Promise<void>;
 }) {
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const { t } = useI18n();
   return (
     <button
       type="button"
@@ -442,7 +447,7 @@ function RegenerateButton({
       }}
       disabled={isRegenerating}
       data-slot="image-regenerate"
-      aria-label="Regenerate image"
+      aria-label={t("imageRegenerate")}
       className="hover:bg-muted inline-flex size-7 items-center justify-center rounded disabled:opacity-50"
     >
       <RefreshCwIcon
@@ -453,6 +458,7 @@ function RegenerateButton({
 }
 
 function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
+  const { t } = useI18n();
   return (
     <div
       data-slot="image-actions"
@@ -462,7 +468,7 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
         type="button"
         onClick={() => downloadImagePart(part)}
         data-slot="image-download"
-        aria-label="Download image"
+        aria-label={t("imageDownload")}
         className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
         <DownloadIcon className="size-4" />
@@ -473,7 +479,7 @@ function ImageActions({ part, onRegenerate, className }: ImageActionsProps) {
           copyImagePart(part).catch(() => {});
         }}
         data-slot="image-copy"
-        aria-label="Copy image"
+        aria-label={t("imageCopy")}
         className="hover:bg-muted inline-flex size-7 items-center justify-center rounded"
       >
         <CopyIcon className="size-4" />

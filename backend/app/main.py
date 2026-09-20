@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+
+load_dotenv()  # 加载 backend/.env（LLM 配置 / DATABASE_URL）
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,7 +10,7 @@ from app.routers import ask, auth
 app = FastAPI(
     title="DeepData API",
     version="0.1.0",
-    description="问数工具后端：自然语言提问 -> 可追溯、可解释的答案 + 图表。",
+    description="DeepData 对话后端：多轮对话智能体（LLM + 短期记忆）。",
 )
 
 # 允许本地前端（Vite dev server）跨域访问

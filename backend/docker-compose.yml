@@ -1,0 +1,23 @@
+# DeepData 智能体记忆存储：本地一个 PostgreSQL，专用库 askdata_memory。
+# 用法： docker compose up -d
+services:
+  postgres:
+    image: postgres:16
+    container_name: askdata-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: askdata
+      POSTGRES_PASSWORD: askdata
+      POSTGRES_DB: askdata_memory
+    ports:
+      - "5432:5432"
+    volumes:
+      - askdata_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U askdata -d askdata_memory"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  askdata_pgdata:
