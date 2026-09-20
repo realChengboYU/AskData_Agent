@@ -209,7 +209,7 @@ export default function Chat() {
         last?.role === 'user' && extractText(last?.content ?? '').trim() === question
       const base = lastIsSameUser
         ? messagesRef.current
-        : [...messagesRef.current, { id: last?.id ?? makeId(), role: 'user', content: question }]
+        : [...messagesRef.current, { id: makeId(), role: 'user', content: question }]
       // 助手占位：thinking 与正文两个 part，流式期间 thinking part 标记为 running 以自动展开
       setMessages([
         ...base,
