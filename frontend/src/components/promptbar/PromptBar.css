@@ -2,7 +2,7 @@
   --pb-bg: #27272a;
   --pb-ink: #f5f5f5;
   --pb-menu: #323236;
-  --pb-w: 400px;
+  --pb-w: min(var(--thread-max-width, 60rem), 100%);
   --pb-radius: 16px;
   --pb-press: 0.96;
   --pb-spark: #b39dff;

@@ -6,6 +6,23 @@ const api = axios.create({
   timeout: 180000,
 })
 
+// 对瞬时故障（后端 --reload 重启窗口 / 网络抖动）做退避重试，避免首屏加载报 502。
+async function retry(fn, { retries = 3, delay = 600 } = {}) {
+  let lastErr
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      lastErr = e
+      const status = e?.response?.status
+      const retriable = !status || [502, 503, 504].includes(status)
+      if (!retriable || i === retries) throw e
+      await new Promise((r) => setTimeout(r, delay * (i + 1)))
+    }
+  }
+  throw lastErr
+}
+
 // 自动带上登录 token，供后端识别用户（用于长期记忆按用户归档）
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('askdata_token')
@@ -32,15 +49,16 @@ function parseSseData(text, handlers) {
     const ev = JSON.parse(raw)
     if (ev.type === 'reasoning') handlers.onReasoning?.(ev.delta ?? '')
     else if (ev.type === 'text') handlers.onText?.(ev.delta ?? '')
+    else if (ev.type === 'tool') handlers.onTool?.(ev)
     else if (ev.type === 'error') throw new Error(ev.error || 'unknown error')
     else if (ev.type === 'done') return ev
   }
   return null
 }
 
-// 流式提问（SSE）：逐块回调 thinking / text 增量，resolve with done 事件。
+// 流式提问（SSE）：逐块回调 thinking / text / tool 增量，resolve with done 事件。
 export async function askQuestionStream(payload, handlers = {}) {
-  const { onReasoning, onText, signal } = handlers || {}
+  const { onReasoning, onText, onTool, signal } = handlers || {}
   const headers = { 'Content-Type': 'application/json' }
   const token = localStorage.getItem('askdata_token')
   if (token) headers.Authorization = `Bearer ${token}`
@@ -95,12 +113,12 @@ export function getSession() {
 
 // 读取某会话的历史消息（含模型历史回复），用于恢复对话
 export function getHistory(sessionId) {
-  return api.get('/ask/history', { params: { session_id: sessionId } }).then((res) => res.data)
+  return retry(() => api.get('/ask/history', { params: { session_id: sessionId } }).then((res) => res.data))
 }
 
 // 枚举历史会话列表（标题=首条用户消息，按最近更新倒序）
 export function getSessions() {
-  return api.get('/ask/sessions').then((res) => res.data)
+  return retry(() => api.get('/ask/sessions').then((res) => res.data))
 }
 
 // 删除某个历史会话（连同它的所有历史消息）

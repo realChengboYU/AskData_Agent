@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AssistantRuntimeProvider, useExternalStoreRuntime } from '@assistant-ui/react'
-import { Thread } from '@/components/thread.aui'
-import { TooltipProvider } from '@/components/ui/tooltip'
-import { ComposerControlsContext } from '@/components/promptbar/controls'
-import { BookOutlined, CheckOutlined, DeleteOutlined, DoubleLeftOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
+import AssistantChat from '@/components/assistant-chat'
+import { BookOutlined, CheckOutlined, DatabaseOutlined, DeleteOutlined, DoubleLeftOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import { LANGS, LANG_LABELS, useI18n } from '../i18n'
-import { askQuestionStream, deleteSession, getHistory, getSessions } from '../api'
+import { deleteSession, getHistory, getSessions } from '../api'
 import './chat.css'
 
 function sleep(ms) {
@@ -35,6 +32,18 @@ function mapHistory(data) {
     if (isAssistant) {
       // 把模型 thinking 放在正文前，渲染成可折叠的「思考过程」
       if (m.reasoning) parts.push({ type: 'reasoning', text: m.reasoning })
+      // 工具调用信息（复用思考样式，可折叠展示）
+      if (Array.isArray(m.tools)) {
+        for (const tool of m.tools) {
+          parts.push({
+            type: 'tool-call',
+            toolCallId: makeId(),
+            toolName: tool?.name,
+            args: tool?.args,
+            result: tool?.result,
+          })
+        }
+      }
       parts.push({ type: 'text', text: m.content })
     }
     return {
@@ -101,18 +110,25 @@ export default function Chat() {
   const navigate = useNavigate()
   const { t } = useI18n()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [messages, setMessagesState] = useState([])
+  // 当前会话的历史消息（原始后端结构，交给 AssistantChat 转成 UI）
+  const [historyMessages, setHistoryMessages] = useState([])
+  // 每次历史重新加载都 +1，用作 AssistantChat 的 key 的一部分：
+  // 运行结束后重新拉取历史让消息结构刷新，避免流式状态被覆盖后答案“消失”。
+  const [historyVersion, setHistoryVersion] = useState(0)
   const [sessions, setSessions] = useState([])
-  const messagesRef = useRef([])
+  // 对话列宽度（rem）。悬停对话条左右边缘拖拽可调，限 50–72rem，持久化到 localStorage。
+  const [threadWidth, setThreadWidth] = useState(() => {
+    const v = Number(localStorage.getItem('askdata_chat_width'))
+    if (Number.isFinite(v) && v >= 50 && v <= 72) return v
+    return 60
+  })
+  const handleResizeWidth = (rem) => {
+    const v = Math.min(72, Math.max(50, Math.round(rem)))
+    setThreadWidth(v)
+    localStorage.setItem('askdata_chat_width', String(v))
+  }
   // 会话 id 存到 localStorage，刷新后仍能恢复同一个对话（含模型历史消息）
   const sessionIdRef = useRef(localStorage.getItem('askdata_session') || makeId())
-  // 当前正在生成的请求控制器，供 PromptBar 的「停止」按钮取消
-  const stopRef = useRef(null)
-
-  const setMessages = (msgs) => {
-    messagesRef.current = msgs
-    setMessagesState(msgs)
-  }
 
   // 从后端拉取历史消息并填充到当前会话。
   // 用 sessionIdRef.current 做守卫：快速切换会话时，旧会话的异步返回不会覆盖新会话，保证历史隔离。
@@ -120,11 +136,13 @@ export default function Chat() {
     getHistory(sid)
       .then((data) => {
         if (sessionIdRef.current !== sid) return
-        setMessages(data?.messages?.length ? mapHistory(data) : [])
+        setHistoryMessages(data?.messages ?? [])
+        setHistoryVersion((v) => v + 1)
       })
       .catch(() => {
         if (sessionIdRef.current !== sid) return
-        setMessages([])
+        setHistoryMessages([])
+        setHistoryVersion((v) => v + 1)
       })
   }
 
@@ -154,6 +172,14 @@ export default function Chat() {
       .catch(() => setSessions((prev) => mergeSessions(prev, [])))
   }
 
+  // 每次运行结束：刷新会话列表，并重新拉取当前会话历史。
+  // 重新拉取会让 initialMessages 带上刚生成的回答，AssistantChat 随 key 变更重挂载，
+  // 从而修复「答案出现后又消失」。
+  const handleRunFinish = () => {
+    refreshSessions()
+    loadHistory(sessionIdRef.current)
+  }
+
   // 切换到指定会话：更新 session id，并加载它的历史
   const openSession = (sid) => {
     if (!sid || sid === sessionIdRef.current) return
@@ -180,127 +206,12 @@ export default function Chat() {
             // 没有剩余会话：重置为空白对话，但不新增“（新会话）”行
             sessionIdRef.current = makeId()
             localStorage.setItem('askdata_session', sessionIdRef.current)
-            messagesRef.current = []
-            setMessagesState([])
+            setHistoryMessages([])
           }
         }
       })
       .catch(() => {})
   }
-
-  const isRunning = messagesRef.current.some(
-    (m) => m.role === 'assistant' && m.status?.type === 'running',
-  )
-
-  const runtime = useExternalStoreRuntime({
-    messages,
-    setMessages,
-    isRunning,
-    convertMessage: (m) => m,
-    onNew: async (message) => {
-      const question = extractText(message.content).trim()
-      if (!question) return
-      // 记录这条消息属于哪个会话：之后即使用户切走，也不会把回应注入别的会话
-      const askSession = sessionIdRef.current
-      const assistantId = makeId()
-
-      const last = messagesRef.current[messagesRef.current.length - 1]
-      const lastIsSameUser =
-        last?.role === 'user' && extractText(last?.content ?? '').trim() === question
-      const base = lastIsSameUser
-        ? messagesRef.current
-        : [...messagesRef.current, { id: makeId(), role: 'user', content: question }]
-      // 助手占位：thinking 与正文两个 part，流式期间 thinking part 标记为 running 以自动展开
-      setMessages([
-        ...base,
-        {
-          id: assistantId,
-          role: 'assistant',
-          content: [
-            { type: 'reasoning', text: '', status: { type: 'running' } },
-            { type: 'text', text: '' },
-          ],
-          status: { type: 'running' },
-        },
-      ])
-
-      // 实时把增量追加到指定 part
-      const appendDelta = (type, delta) => {
-        setMessages(
-          messagesRef.current.map((m) => {
-            if (m.id !== assistantId) return m
-            const parts = Array.isArray(m.content) ? m.content : []
-            return {
-              ...m,
-              content: parts.map((p) =>
-                p.type === type ? { ...p, text: (p.text || '') + delta } : p,
-              ),
-            }
-          }),
-        )
-      }
-
-      const ctrl = new AbortController()
-      stopRef.current = ctrl
-      try {
-        // 消费 SSE：thinking 与正文逐块实时显示，完成后 resolve
-        await askQuestionStream(
-          { question, session_id: askSession },
-          {
-            onReasoning: (delta) => appendDelta('reasoning', delta),
-            onText: (delta) => appendDelta('text', delta),
-            signal: ctrl.signal,
-          },
-        )
-
-        // 本条已写入后端，无论是否切走都刷新会话列表（让该会话标题/条目生效）
-        refreshSessions()
-        // 若用户已切到别的会话，就不再往当前视图注入这条回应（切回 askSession 时会加载到）
-        if (sessionIdRef.current !== askSession) return
-
-        // 完成：收起 thinking 展开态并标记完成
-        setMessages(
-          messagesRef.current.map((m) =>
-            m.id === assistantId
-              ? {
-                  ...m,
-                  content: (Array.isArray(m.content) ? m.content : []).map((p) =>
-                    p.type === 'reasoning' ? { ...p, status: { type: 'complete' } } : p,
-                  ),
-                  status: { type: 'complete', reason: 'stop' },
-                }
-              : m,
-          ),
-        )
-      } catch (err) {
-        // 已切到别的会话，就不在别的会话里显示这个错误
-        if (sessionIdRef.current !== askSession) return
-        const isCancel =
-          err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError'
-        if (isCancel) {
-          // 用户点了「停止」：把占位回复标记为中断，避免一直卡在“生成中”
-          setMessages(
-            messagesRef.current.map((m) =>
-              m.id === assistantId
-                ? { ...m, status: { type: 'incomplete', reason: 'error' } }
-                : m,
-            ),
-          )
-          return
-        }
-        const msg = err?.message ?? err?.response?.data?.detail ?? '暂时无法连接后端服务，请确认 FastAPI 已在 8100 端口启动。'
-        setMessages(
-          messagesRef.current.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: [{ type: 'text', text: msg }], status: { type: 'incomplete', reason: 'error' } }
-              : m,
-          ),
-        )
-      } finally {
-        if (stopRef.current === ctrl) stopRef.current = null
-      }
-    },
-  })
 
   // 挂载时：持久化会话 id，恢复历史消息，并加载侧栏「会话列表」
   useEffect(() => {
@@ -319,8 +230,7 @@ export default function Chat() {
   function newChat() {
     sessionIdRef.current = makeId()
     localStorage.setItem('askdata_session', sessionIdRef.current)
-    messagesRef.current = []
-    setMessagesState([])
+    setHistoryMessages([])
     // 直接在列表顶部新增一行（当前空会话），保留其它会话行
     setSessions((prev) => [
       { session_id: sessionIdRef.current, title: '（新会话）', updated_at: '', message_count: 0 },
@@ -330,20 +240,8 @@ export default function Chat() {
 
   const user = JSON.parse(localStorage.getItem('askdata_user') || '{}')
 
-  // PromptBar：发送走 assistant-ui runtime 的 onNew（thread.append 触发）；「停止」取消当前正在生成的请求
-  const composerControls = useMemo(
-    () => ({
-      onStop: () => stopRef.current?.abort(),
-      send: (msg) => runtime.thread.append(msg),
-    }),
-    [runtime],
-  )
-
   return (
-    <ComposerControlsContext.Provider value={composerControls}>
-    <AssistantRuntimeProvider runtime={runtime}>
-      <TooltipProvider>
-        <div className="chat">
+    <div className="chat">
           <aside className={`chat-sidebar${sidebarOpen ? '' : ' collapsed'}`}>
             <div className="side-brand">
               <img
@@ -375,6 +273,9 @@ export default function Chat() {
               </button>
               <button type="button" className="side-icon" title="知识库">
                 <BookOutlined />
+              </button>
+              <button type="button" className="side-icon" title="数据源管理">
+                <DatabaseOutlined />
               </button>
               <button type="button" className="side-icon" title="新建窗口">
                 <PlusSquareOutlined />
@@ -425,7 +326,7 @@ export default function Chat() {
             </div>
           </aside>
 
-          <div className="chat-main">
+          <div className="chat-main" style={{ ['--thread-max-width']: `${threadWidth}rem` }}>
             <header className="chat-head">
               <div className="chat-head-right">
                 <span className="chat-user">{user?.name || 'deepdata'}</span>
@@ -433,12 +334,14 @@ export default function Chat() {
               </div>
             </header>
             <main className="chat-body">
-              <Thread />
+              <AssistantChat
+                key={`${sessionIdRef.current}:${historyVersion}`}
+                threadId={sessionIdRef.current}
+                initialMessages={historyMessages}
+                onFinish={handleRunFinish}
+              />
             </main>
           </div>
         </div>
-      </TooltipProvider>
-    </AssistantRuntimeProvider>
-    </ComposerControlsContext.Provider>
   )
 }

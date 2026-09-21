@@ -1,0 +1,10 @@
+{
+  "name": "data_qa",
+  "description": "解释、对比或总结已有查询结果，输出直答或 Markdown 报告；不重新查库、不编造。",
+  "allowed_tools": [],
+  "max_tool_calls": 3,
+  "output_actions": [
+    "answer",
+    "report"
+  ]
+}

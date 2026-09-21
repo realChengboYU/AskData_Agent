@@ -1,0 +1,15 @@
+{
+  "name": "database_query",
+  "description": "根据数据库 Schema 选择 SQL 工具，生成并执行只读 PostgreSQL SQL，输出可解释答案。",
+  "allowed_tools": [
+    "sql_db_list_tables",
+    "sql_db_schema",
+    "sql_db_query",
+    "sql_db_query_checker"
+  ],
+  "max_tool_calls": 4,
+  "output_actions": [
+    "call_tool",
+    "clarify"
+  ]
+}

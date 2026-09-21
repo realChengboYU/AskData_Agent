@@ -16,6 +16,7 @@ import {
   ReasoningText,
   ReasoningTrigger,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import { ToolCallBlock } from "@/components/assistant-ui/elements/tool-call";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
@@ -24,6 +25,8 @@ import {
 } from "@/components/assistant-ui/elements/tool-group.aui";
 import { TooltipIconButton } from "@/components/tooltip-icon-button";
 import { PromptBarComposer } from "@/components/promptbar/PromptBarComposer";
+import { useComposerControls } from "@/components/promptbar/controls";
+import Chart from "@/components/echarts/chart";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -75,6 +78,52 @@ import {
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
+type ClarificationOption = {
+  id?: string;
+  label?: string;
+  description?: string;
+};
+
+type ClarificationPart = {
+  question?: string;
+  options?: ClarificationOption[];
+};
+
+function Clarification({ part }: { part: ClarificationPart }) {
+  const { send } = useComposerControls();
+  const options = part.options ?? [];
+  const choose = (label?: string) => {
+    const text = label?.trim();
+    if (!text) return;
+    send?.({ role: "user", content: text });
+  };
+  return (
+    <div
+      data-slot="aui_clarification"
+      className="my-1 rounded-xl border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm"
+    >
+      {part.question && (
+        <div className="mb-1.5 font-medium text-amber-900">{part.question}</div>
+      )}
+      <div className="flex flex-col gap-1.5">
+        {options.map((o, i) => (
+          <button
+            key={o.id ?? i}
+            type="button"
+            onClick={() => choose(o.label)}
+            className="flex flex-col items-start rounded-lg border border-amber-200 bg-white px-2.5 py-1.5 text-left transition-colors hover:border-amber-400 hover:bg-amber-50"
+          >
+            <span className="text-amber-800">{o.label ?? o.id}</span>
+            {o.description && (
+              <span className="text-xs text-amber-600/80">{o.description}</span>
+            )}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Optional component overrides for the thread. `AssistantMessage` and
  * `Welcome` replace whole sections; the remaining slots override how the
@@ -99,7 +148,7 @@ export type ThreadComponents = {
 
 const messageGroupBy = groupPartByType({
   reasoning: ["group-chainOfThought", "group-reasoning"],
-  "tool-call": ["group-chainOfThought", "group-tool"],
+  "tool-call": [],
   "standalone-tool-call": [],
 });
 
@@ -130,6 +179,8 @@ const taskAwareGroupBy = (
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
   autoFocus?: boolean | undefined;
+  /** 拖拽对话条左右边缘改变宽度时回调（单位 rem）。不传则禁用边缘拖拽。 */
+  onResizeWidth?: ((rem: number) => void) | undefined;
 };
 
 const EMPTY_COMPONENTS: ThreadComponents = {};
@@ -177,27 +228,82 @@ const ThreadHistorySkeleton: FC = () => {
 export const Thread: FC<ThreadProps> = ({
   components = EMPTY_COMPONENTS,
   autoFocus = true,
+  onResizeWidth,
 }) => {
   const isEmpty = useAuiState(isNewChatView);
 
   return (
     <ThreadComponentsContext.Provider value={components}>
-      <ThreadRoot isEmpty={isEmpty} autoFocus={autoFocus} />
+      <ThreadRoot
+        isEmpty={isEmpty}
+        autoFocus={autoFocus}
+        onResizeWidth={onResizeWidth}
+      />
     </ThreadComponentsContext.Provider>
   );
 };
 
-const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
+const ThreadRoot: FC<{
+  isEmpty: boolean;
+  autoFocus: boolean;
+  onResizeWidth?: (rem: number) => void;
+}> = ({
   isEmpty,
   autoFocus,
+  onResizeWidth,
 }) => {
   const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
+  const colRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<null | {
+    side: "left" | "right";
+    startX: number;
+    startWidthPx: number;
+  }>(null);
+  const [dragSide, setDragSide] = useState<null | "left" | "right">(null);
+
+  // 拖拽过程中监听全局 pointermove/up，实时更新 --thread-max-width
+  useEffect(() => {
+    if (!dragSide) return;
+    const onMove = (e: PointerEvent) => {
+      const d = dragStartRef.current;
+      if (!d) return;
+      const delta = e.clientX - d.startX;
+      // 右把手：往右拖变宽；左把手：往左拖变宽
+      const newW =
+        d.side === "right"
+          ? d.startWidthPx + delta
+          : d.startWidthPx - delta;
+      const clamped = Math.min(72 * 16, Math.max(50 * 16, newW));
+      onResizeWidth?.(Math.round(clamped / 16));
+    };
+    const onUp = () => {
+      dragStartRef.current = null;
+      setDragSide(null);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+  }, [dragSide, onResizeWidth]);
+
+  const handleDown = (side: "left" | "right") => (e: React.PointerEvent) => {
+    const el = colRef.current;
+    if (!el || !onResizeWidth) return;
+    e.preventDefault();
+    dragStartRef.current = {
+      side,
+      startX: e.clientX,
+      startWidthPx: el.getBoundingClientRect().width,
+    };
+    setDragSide(side);
+  };
 
   return (
     <ThreadPrimitive.Root
       className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
       style={{
-        ["--thread-max-width" as string]: "44rem",
         ["--composer-bg" as string]:
           "color-mix(in oklab, var(--color-muted) 30%, transparent)",
         ["--composer-radius" as string]: "1rem",
@@ -210,11 +316,28 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
         className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
         <div
+          ref={colRef}
           className={cn(
-            "mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
+            "relative mx-auto flex w-full max-w-(--thread-max-width) flex-1 flex-col px-4 pt-4",
             isEmpty && "justify-center",
           )}
         >
+          {onResizeWidth && (
+            <>
+              <div
+                data-slot="thread-resize-handle"
+                data-side="left"
+                onPointerDown={handleDown("left")}
+                className="thread-resize-handle left-0"
+              />
+              <div
+                data-slot="thread-resize-handle"
+                data-side="right"
+                onPointerDown={handleDown("right")}
+                className="thread-resize-handle right-0"
+              />
+            </>
+          )}
           <AuiIf condition={isNewChatView}>
             <Welcome />
           </AuiIf>
@@ -593,9 +716,21 @@ const AssistantMessage: FC = () => {
               case "reasoning":
                 return <Reasoning {...part} />;
               case "tool-call":
-                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+                return (
+                  part.toolUI ?? (
+                    <ToolCallBlock
+                      name={part.toolName}
+                      args={part.args}
+                      result={part.result}
+                    />
+                  )
+                );
               case "data":
                 return part.dataRendererUI;
+              case "clarification":
+                return <Clarification part={part} />;
+              case "chart":
+                return <Chart spec={part.spec} />;
               case "file":
                 return (
                   <div data-slot="aui_assistant-message-file" className="py-1">

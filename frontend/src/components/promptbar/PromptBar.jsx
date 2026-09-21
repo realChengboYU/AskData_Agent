@@ -468,7 +468,7 @@ export default function PromptBar({
         '--pb-bg': background,
         '--pb-ink': color,
         '--pb-menu': menuBackground,
-        '--pb-w': `${width}px`,
+        '--pb-w': `min(var(--thread-max-width, 60rem), 100%)`,
         '--pb-radius': `${radius}px`,
         '--pb-spark': sparkColor,
         '--pb-press': pressScale

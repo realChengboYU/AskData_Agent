@@ -13,6 +13,7 @@ from app.services.pipeline.runner import (
     delete_session,
     get_history,
     list_sessions,
+    resume_clarify,
     run_agent,
     run_agent_stream,
 )
@@ -21,6 +22,7 @@ __all__ = [
     "get_llm",
     "run_agent",
     "run_agent_stream",
+    "resume_clarify",
     "get_history",
     "list_sessions",
     "delete_session",

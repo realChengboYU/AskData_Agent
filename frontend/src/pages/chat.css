@@ -31,6 +31,37 @@
   border-bottom: 1px solid #dbeafe;
 }
 
+/* 对话条左右边缘拖拽调宽把手 */
+.thread-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 7px;
+  cursor: col-resize;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  touch-action: none;
+}
+.thread-resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 44px;
+  border-radius: 999px;
+  background: #2563eb;
+  opacity: 0.75;
+}
+.thread-resize-handle.left { left: -4px; }
+.thread-resize-handle.left::after { right: 2px; }
+.thread-resize-handle.right { right: -4px; }
+.thread-resize-handle.right::after { left: 2px; }
+.thread-resize-handle:hover,
+.thread-resize-handle:active {
+  opacity: 1;
+}
+
 .chat-brand {
   display: flex;
   align-items: center;

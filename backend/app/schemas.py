@@ -28,10 +28,17 @@ class AskResponse(BaseModel):
     session_id: Optional[str] = None
 
 
+class ClarifyRequest(BaseModel):
+    session_id: str = Field(..., min_length=1)
+    option_id: str = Field(..., min_length=1)
+
+
 class HistoryMessage(BaseModel):
     role: str  # 'user' | 'assistant'
     content: str
     reasoning: Optional[str] = None  # 助手消息的模型思考过程（供前端恢复）
+    tools: Optional[list] = None  # 助手消息调用的工具列表 [{name,args,result}]
+    charts: Optional[list] = None  # 助手消息产出的图表 spec 列表 [{chartType,categories,series,...}]
 
 
 class HistoryResponse(BaseModel):

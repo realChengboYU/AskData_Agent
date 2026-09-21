@@ -3,16 +3,23 @@ from typing import Optional
 import json
 
 import jwt
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
 
 from app.config import JWT_ALGORITHM, SECRET_KEY
-from app.schemas import AskRequest, AskResponse, HistoryResponse, SessionsResponse
+from app.schemas import (
+    AskRequest,
+    AskResponse,
+    ClarifyRequest,
+    HistoryResponse,
+    SessionsResponse,
+)
 from app.services.ask_engine import answer_question
 from app.services.pipeline import (
     delete_session,
     get_history,
     list_sessions,
+    resume_clarify,
     run_agent_stream,
 )
 
@@ -69,6 +76,26 @@ async def ask_stream(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+@router.post("/ask/clarify", response_model=AskResponse)
+def clarify(
+    payload: ClarifyRequest,
+    user_key: str = Depends(get_user_key),
+) -> AskResponse:
+    """用户对澄清问题作出选择后，恢复查询并返回结果。"""
+    try:
+        result = resume_clarify(payload.session_id, payload.option_id, user_key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return AskResponse(
+        question=result.get("question", ""),
+        answer=result.get("answer", ""),
+        reasoning=result.get("reasoning", []),
+        sql=result.get("sql"),
+        chart=result.get("chart"),
+        session_id=result.get("session_id"),
     )
 
 

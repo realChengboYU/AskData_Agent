@@ -5,14 +5,46 @@
 返回 {question, answer, session_id}。
 """
 
+import asyncio
 import json
 import uuid
 from typing import AsyncIterator, Optional
 
 from langsmith import traceable
+from openai import APITimeoutError
 
+from app.datasource.pg import PG_CONNECTION_STRING
+from app.prompt import build_messages
+from app.services.pipeline.chart import (
+    build_spec_from_tool_events,
+    is_chart_call,
+    make_chart_tool,
+    normalize_chart_spec,
+    wants_chart,
+)
+from app.services.pipeline.clarify import (
+    get_pending,
+    make_clarify_tool,
+    parse_clarify,
+    pop_pending,
+    put_pending,
+)
 from app.services.pipeline.graph import _GRAPH
-from app.services.pipeline.llm import _env
+from app.services.pipeline.llm import LLM_TIMEOUT, _env, _invoke_tool
+from app.services.pipeline.router import (
+    has_recent_result,
+    recent_result_context,
+    route_intent,
+)
+from app.skills import get_skill_context
+from app.tools.SQLTools.sql_tools import get_sql_tools
+
+# 模型在推理/回答里表达「想可视化」的意图词（用户问题未必带图关键词，如“按供应商统计”）。
+_CHART_INTENT_WORDS = ("可视化", "柱状图", "折线图", "饼图", "条形图", "图表", "画图", "画个图", "展示数据", "柱图", "趋势图")
+
+
+def _text_wants_chart(text: str) -> bool:
+    return bool(text) and any(w in text for w in _CHART_INTENT_WORDS)
 
 
 @traceable(run_type="chain", name="agent.run")
@@ -45,6 +77,106 @@ def run_agent(
     }
 
 
+def _accumulate_tool_calls(tool_call_chunks: list) -> list:
+    """把 astream 的 tool_call_chunks 分片按 index 合并成完整 tool_calls。"""
+    groups: dict = {}
+    for c in tool_call_chunks or []:
+        idx = c.get("index", 0)
+        g = groups.setdefault(idx, {"name": None, "args": "", "id": None})
+        if c.get("name"):
+            g["name"] = c["name"]
+        if c.get("id"):
+            g["id"] = c["id"]
+        if c.get("args"):
+            g["args"] += c["args"]
+    calls = []
+    for idx in sorted(groups):
+        g = groups[idx]
+        if not g["name"]:
+            continue
+        try:
+            args = json.loads(g["args"]) if g["args"] else {}
+        except Exception:
+            args = {}
+        calls.append({"name": g["name"], "args": args, "id": g["id"] or "", "type": "tool_call"})
+    return calls
+
+
+async def _agent_stream(llm, tools: list, messages: list, max_iters: int = 8, state: dict | None = None):
+    """绑定工具的多轮流式生成（支持 clarify / render_chart）。
+
+    yield 事件：{"type":"reasoning","delta"} | {"type":"text","delta"}
+              | {"type":"tool",name,args,result} | {"type":"clarification",question,options}
+              | {"type":"chart","spec":{...}}
+    当模型调用 clarify 工具时，不再执行其它调用，直接产出 clarification 事件并暂停；
+    render_chart 被拦截（记录 spec 并产出 chart 事件），模型随后继续给出文字解读。
+    state（可选）用于把「模型是否尝试过 render_chart」回传给调用方，供兜底判断。
+    """
+    bound = llm.bind_tools(tools)
+    chart_yielded = False
+    for _ in range(max_iters + 1):
+        tcc: list = []
+        # 模型服务偶发慢：对单轮 LLM 调用做一次超时重试（重试会重新生成增量，偶发重复可接受）
+        for attempt in range(2):
+            try:
+                async for chunk in bound.astream(messages):
+                    for b in (getattr(chunk, "content_blocks", None) or []):
+                        t = b.get("type") if isinstance(b, dict) else getattr(b, "type", None)
+                        if t == "reasoning":
+                            delta = b.get("reasoning", "") if isinstance(b, dict) else getattr(b, "reasoning", "")
+                            if delta:
+                                yield {"type": "reasoning", "delta": delta}
+                        elif t == "text":
+                            delta = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                            if delta:
+                                yield {"type": "text", "delta": delta}
+                    tcc_chunks = getattr(chunk, "tool_call_chunks", None)
+                    if tcc_chunks:
+                        tcc.extend(tcc_chunks)
+                break
+            except (APITimeoutError, TimeoutError):
+                if attempt == 0:
+                    tcc = []
+                    await asyncio.sleep(1.5)
+                    continue
+                raise
+        calls = _accumulate_tool_calls(tcc)
+        if not calls:
+            break
+        clarification = None
+        for call in calls:
+            if is_chart_call(call):
+                if state is not None:
+                    state["chart_attempted"] = True
+                if not chart_yielded:
+                    spec = normalize_chart_spec(call.get("args") or {})
+                    if spec:
+                        yield {"type": "chart", "spec": spec}
+                        chart_yielded = True
+                messages.append({
+                    "role": "tool",
+                    "content": "图表已生成并在界面中展示给用户，请用文字解读结果。",
+                    "tool_call_id": call["id"],
+                    "name": call["name"],
+                })
+                continue
+            cl = parse_clarify(call)
+            if cl is not None:
+                clarification = cl
+                continue
+            result = _invoke_tool(tools, call)
+            yield {"type": "tool", "name": call["name"], "args": call["args"], "result": result}
+            messages.append({
+                "role": "tool",
+                "content": result,
+                "tool_call_id": call["id"],
+                "name": call["name"],
+            })
+        if clarification is not None:
+            yield {"type": "clarification", **clarification}
+            return
+
+
 async def run_agent_stream(
     question: str,
     session_id: Optional[str] = None,
@@ -52,11 +184,13 @@ async def run_agent_stream(
 ) -> AsyncIterator[dict]:
     """流式多轮对话：逐块返回模型 thinking / answer 增量（SSE 事件），并在结束时持久化会话。
 
+    若配置了数据源，智能体绑定 SQLDatabaseToolkit 工具；模型需查询数据库时会输出工具调用信息。
     事件形状：
       {"type":"reasoning","delta":str}   模型思考增量
       {"type":"text","delta":str}        回答增量
+      {"type":"tool","name","args","result"}  工具调用信息
       {"type":"error","error":str}       出错
-      {"type":"done","answer", "reasoning", "session_id"}  完成
+      {"type":"done","answer","reasoning","tools","session_id"}  完成
     """
     q = (question or "").strip()
     if not q:
@@ -70,43 +204,128 @@ async def run_agent_stream(
         history = get_history(thread_id).get("messages") or []
     except Exception:  # pragma: no cover
         history = []
-    llm_messages = [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in history]
-    llm_messages.append({"role": "user", "content": q})
 
     reasoning_parts: list[str] = []
     text_parts: list[str] = []
+    tool_events: list[dict] = []
+    chart_events: list[dict] = []
+    clarification_requested: Optional[dict] = None
+    agent_state: dict = {"chart_attempted": False}
+    answer = ""
+    reasoning = ""
+
     try:
         from langchain_deepseek import ChatDeepSeek
 
         api_key, base_url, model = _env()
         if not api_key:
             raise RuntimeError("未配置 LLM：请在 backend/.env 设置 LLM_API_KEY")
-        llm = ChatDeepSeek(model=model, api_key=api_key, base_url=base_url, temperature=0.7, timeout=120)
-        async for chunk in llm.astream(llm_messages):
-            for b in (getattr(chunk, "content_blocks", None) or []):
-                t = b.get("type") if isinstance(b, dict) else getattr(b, "type", None)
-                if t == "reasoning":
-                    delta = b.get("reasoning", "") if isinstance(b, dict) else getattr(b, "reasoning", "")
-                    if delta:
-                        reasoning_parts.append(delta)
-                        yield {"type": "reasoning", "delta": delta}
-                elif t == "text":
-                    delta = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
-                    if delta:
-                        text_parts.append(delta)
-                        yield {"type": "text", "delta": delta}
+        llm = ChatDeepSeek(model=model, api_key=api_key, base_url=base_url, temperature=0.7, timeout=LLM_TIMEOUT)
+        tools = get_sql_tools(llm, db_url=PG_CONNECTION_STRING)
+        route = route_intent(q, bool(tools), has_recent_result(history))
+
+        if route == "database_query":
+            # 查询能力走 database_query Skill：注入 SKILL.md 指令 + 按 allowed_tools 收敛工具面 + 追加 clarify 工具。
+            skill_instructions, allowed_tools = get_skill_context("database_query")
+            tool_names = set(allowed_tools or [])
+            sql_tools = [t for t in tools if getattr(t, "name", None) in tool_names]
+            bind_tools = list(sql_tools) + [make_clarify_tool(), make_chart_tool()]
+            messages = build_messages(history, question=q, skill_instructions=skill_instructions)
+            async for ev in _agent_stream(llm, bind_tools, messages, state=agent_state):
+                if ev["type"] == "reasoning":
+                    reasoning_parts.append(ev["delta"])
+                elif ev["type"] == "text":
+                    text_parts.append(ev["delta"])
+                elif ev["type"] == "tool":
+                    tool_events.append(ev)
+                elif ev["type"] == "chart":
+                    chart_events.append(ev.get("spec") or {})
+                elif ev["type"] == "clarification":
+                    clarification_requested = ev
+                yield ev
+        elif route == "data_qa":
+            # data_qa：复用已有查询结果，绑定 chart 工具让模型可视化
+            skill_instructions, _ = get_skill_context("data_qa")
+            rec = recent_result_context(history)
+            user_content = f"{q}\n\n[已有查询结果]\n{rec}" if rec else q
+            messages = build_messages(history, question=user_content, skill_instructions=skill_instructions)
+            async for ev in _agent_stream(llm, [make_chart_tool()], messages, state=agent_state):
+                if ev["type"] == "reasoning":
+                    reasoning_parts.append(ev["delta"])
+                elif ev["type"] == "text":
+                    text_parts.append(ev["delta"])
+                elif ev["type"] == "tool":
+                    tool_events.append(ev)
+                elif ev["type"] == "chart":
+                    chart_events.append(ev.get("spec") or {})
+                elif ev["type"] == "clarification":
+                    clarification_requested = ev
+                yield ev
+        else:
+            # direct_response：不绑定工具，纯对话
+            messages = build_messages(history, question=q)
+            async for chunk in llm.astream(messages):
+                for b in (getattr(chunk, "content_blocks", None) or []):
+                    t = b.get("type") if isinstance(b, dict) else getattr(b, "type", None)
+                    if t == "reasoning":
+                        delta = b.get("reasoning", "") if isinstance(b, dict) else getattr(b, "reasoning", "")
+                        if delta:
+                            reasoning_parts.append(delta)
+                            yield {"type": "reasoning", "delta": delta}
+                    elif t == "text":
+                        delta = b.get("text", "") if isinstance(b, dict) else getattr(b, "text", "")
+                        if delta:
+                            text_parts.append(delta)
+                            yield {"type": "text", "delta": delta}
     except Exception as exc:
+        import traceback as _tb
+        print(f"[run_agent_stream] LLM 调用失败: {exc}\n{_tb.format_exc()}", flush=True)
         yield {"type": "error", "error": f"LLM 调用失败：{exc}"}
         return
 
     answer = "".join(text_parts)
     reasoning = "".join(reasoning_parts)
 
-    # 持久化会话（含 reasoning，供刷新 / 历史恢复），不重复调用 LLM
+    # 确定性兜底：用户要图（或模型尝试过 render_chart，或模型在推理/回答里表达了可视化意向）
+    # 但没产出可用 chart 时，从最后一个表格型查询结果构建 spec。
+    if (wants_chart(q) or agent_state.get("chart_attempted") or _text_wants_chart(reasoning + answer)) and not chart_events:
+        try:
+            spec = build_spec_from_tool_events(tool_events, q)
+        except Exception:
+            spec = None  # 兜底解析失败绝不能中断流（否则前端停在思考）
+        if spec:
+            chart_events.append(spec)
+            yield {"type": "chart", "spec": spec}
+
+    # 需要澄清：暂停并记录待澄清状态，不产出最终答案
+    if clarification_requested is not None:
+        put_pending(thread_id, clarification_requested)
+        try:
+            full = history + [
+                {"role": "user", "content": q},
+                {"role": "assistant", "content": answer or clarification_requested.get("question", ""),
+                 "reasoning": reasoning, "tools": tool_events, "charts": chart_events,
+                 "clarification": True},
+            ]
+            _GRAPH.update_state(config, {"messages": full})
+        except Exception:
+            pass
+        yield {
+            "type": "done",
+            "answer": answer,
+            "reasoning": [reasoning] if reasoning else [],
+            "tools": tool_events,
+            "session_id": thread_id,
+            "pending_clarification": clarification_requested,
+        }
+        return
+
+    # 持久化会话（含 reasoning 与 tools，供刷新 / 历史恢复），不重复调用 LLM
     try:
         full = history + [
             {"role": "user", "content": q},
-            {"role": "assistant", "content": answer, "reasoning": reasoning},
+            {"role": "assistant", "content": answer, "reasoning": reasoning,
+             "tools": tool_events, "charts": chart_events},
         ]
         _GRAPH.update_state(config, {"messages": full})
     except Exception:
@@ -116,8 +335,94 @@ async def run_agent_stream(
         "type": "done",
         "answer": answer,
         "reasoning": [reasoning] if reasoning else [],
+        "tools": tool_events,
         "session_id": thread_id,
     }
+
+
+def resume_clarify(
+    session_id: Optional[str],
+    option_id: str,
+    user_key: Optional[str] = None,
+) -> dict:
+    """用户对澄清选择后的恢复：把选择写入历史并继续生成结果。
+
+    返回 dict：{question, answer, reasoning, session_id}。
+    """
+    if not session_id:
+        raise ValueError("缺少会话 id")
+    pending = pop_pending(session_id) or {}
+    options = pending.get("options") or []
+    selected = next(
+        (o for o in options if str(o.get("id")) == str(option_id)),
+        None,
+    )
+    if not selected:
+        raise ValueError("无效的澄清选项")
+    label = selected.get("label") or str(selected.get("id"))
+
+    history = get_history(session_id).get("messages") or []
+    # 把澄清一问一答写进历史，方便后续生成引用用户的选择
+    full = history + [
+        {"role": "assistant", "content": pending.get("question", "请补充口径。"), "clarification": True},
+        {"role": "user", "content": f"我选择：{label}。"},
+    ]
+    config = {"configurable": {"thread_id": session_id}}
+    try:
+        _GRAPH.update_state(config, {"messages": full})
+    except Exception:
+        pass
+    return run_agent(f"基于我选择「{label}」，请继续。", session_id, user_key)
+
+
+def _resolve_option(pending: dict, option_label: str) -> dict:
+    """按 label / id 匹配澄清选项；找不到时回退到第一个选项。"""
+    raw = str(option_label or "").strip()
+    # 去掉可能的“我选择：”前缀，便于前端直接回传 label 也能命中
+    if "：" in raw:
+        raw = raw.rsplit("：", 1)[-1].strip()
+    options = pending.get("options") or []
+    sel = next((o for o in options if str(o.get("label")) == raw), None)
+    if sel is None:
+        sel = next((o for o in options if str(o.get("id")) == raw), None)
+    if sel is None:
+        sel = next((o for o in options if raw in str(o.get("label"))), None)
+    if sel is None:
+        sel = options[0] if options else {"id": raw, "label": raw}
+    return sel
+
+
+async def resume_clarify_stream(
+    session_id: Optional[str],
+    option_label: str,
+    user_key: Optional[str] = None,
+) -> AsyncIterator[dict]:
+    """用户对澄清选择后的流式恢复：把选择写入历史并继续生成。
+
+    复用 run_agent_stream 的流式事件（reasoning / text / tool / clarification / error / done）。
+    """
+    if not session_id:
+        yield {"type": "error", "error": "缺少会话 id"}
+        return
+    pending = pop_pending(session_id) or {}
+    if not pending.get("question"):
+        yield {"type": "error", "error": "没有待澄清的问题"}
+        return
+    selected = _resolve_option(pending, option_label)
+    label = selected.get("label") or str(selected.get("id"))
+
+    history = get_history(session_id).get("messages") or []
+    full = history + [
+        {"role": "assistant", "content": pending.get("question", "请补充口径。"), "clarification": True},
+        {"role": "user", "content": f"我选择：{label}。"},
+    ]
+    config = {"configurable": {"thread_id": session_id}}
+    try:
+        _GRAPH.update_state(config, {"messages": full})
+    except Exception:
+        pass
+    async for ev in run_agent_stream(f"基于我选择「{label}」，请继续。", session_id, user_key):
+        yield ev
 
 
 def get_history(session_id: Optional[str] = None) -> dict:
