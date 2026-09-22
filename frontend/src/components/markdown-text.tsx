@@ -1,6 +1,7 @@
 "use client";
 
 import "@assistant-ui/react-markdown/styles/dot.css";
+import "highlight.js/styles/github.css";
 
 import {
   type CodeHeaderProps,
@@ -9,6 +10,7 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 import { type FC, memo, useMemo, useRef } from "react";
 import type { TextMessagePartProps } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -51,6 +53,7 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
+      rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
       className="aui-md"
       components={markdownComponents}
       defer
@@ -223,7 +226,7 @@ const defaultComponents = memoizeMarkdownComponents({
   tr: ({ className, ...props }) => (
     <tr
       className={cn(
-        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg",
+        "aui-md-tr m-0 border-b p-0 first:border-t even:bg-muted/30 [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg",
         className,
       )}
       {...props}

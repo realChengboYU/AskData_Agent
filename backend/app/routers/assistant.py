@@ -140,6 +140,7 @@ async def assistant(
         # 占位 content: [reasoning(0)]；tool/text 都通过 append 追加，text 索引随内容增长
         reasoning_idx = 0
         text_idx = None
+        tool_idx = None  # 当前“执行中”工具调用占位在 content 中的索引，用于 running→done 更新
 
         try:
             async for event in event_iter:
@@ -159,15 +160,29 @@ async def assistant(
                         event.get("delta", ""),
                     )
                 elif etype == "tool":
-                    controller.state["messages"][asst_idx]["content"].append(
-                        {
-                            "type": "tool-call",
-                            "toolCallId": f"tool-{time.time_ns()}",
-                            "toolName": event.get("name"),
-                            "args": event.get("args") or {},
-                            "result": event.get("result"),
-                        }
-                    )
+                    content = controller.state["messages"][asst_idx]["content"]
+                    if event.get("result") is None:
+                        # 执行中：先追加 tool-call 占位（无结果，前端显示“正在查询…/正在生成图表…”）
+                        idx = len(content)
+                        content.append(
+                            {
+                                "type": "tool-call",
+                                "toolCallId": f"tool-{time.time_ns()}",
+                                "toolName": event.get("name"),
+                                "args": event.get("args") or {},
+                                "result": None,
+                                "phase": event.get("phase") or "query",
+                                "status": "running",
+                            }
+                        )
+                        tool_idx = idx
+                    else:
+                        # 执行完成：更新该 tool-call 占位的结果
+                        if tool_idx is not None:
+                            content[tool_idx]["result"] = event.get("result")
+                            content[tool_idx]["phase"] = event.get("phase") or "query"
+                            content[tool_idx]["status"] = "done"
+                        tool_idx = None
                 elif etype == "clarification":
                     controller.state["messages"][asst_idx]["content"].append(
                         {

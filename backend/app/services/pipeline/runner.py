@@ -145,11 +145,17 @@ async def _agent_stream(llm, tools: list, messages: list, max_iters: int = 8, st
             break
         clarification = None
         for call in calls:
+            args = call.get("args") or {}
             if is_chart_call(call):
+                # 正在生成图表…（先发 running，前端显示加载态；结果稍后带出）
+                yield {"type": "tool", "name": call["name"], "args": args,
+                       "result": None, "phase": "chart", "status": "running"}
+                # 让前端先收到 running 帧，再继续（否则会被并到同一个 update-state，看不到加载态）
+                await asyncio.sleep(0)
                 if state is not None:
                     state["chart_attempted"] = True
                 if not chart_yielded:
-                    spec = normalize_chart_spec(call.get("args") or {})
+                    spec = normalize_chart_spec(args)
                     if spec:
                         yield {"type": "chart", "spec": spec}
                         chart_yielded = True
@@ -159,13 +165,24 @@ async def _agent_stream(llm, tools: list, messages: list, max_iters: int = 8, st
                     "tool_call_id": call["id"],
                     "name": call["name"],
                 })
+                yield {"type": "tool", "name": call["name"], "args": args,
+                       "result": "图表已生成", "phase": "chart", "status": "done"}
                 continue
             cl = parse_clarify(call)
             if cl is not None:
                 clarification = cl
                 continue
-            result = _invoke_tool(tools, call)
-            yield {"type": "tool", "name": call["name"], "args": call["args"], "result": result}
+            # 正在查询数据库…
+            yield {"type": "tool", "name": call["name"], "args": args,
+                   "result": None, "phase": "query", "status": "running"}
+            # 让前端先收到 running 帧，再执行工具（否则会被并到同一个 update-state，看不到加载态）
+            await asyncio.sleep(0)
+            try:
+                result = _invoke_tool(tools, call)
+            except Exception as exc:  # 工具执行失败也不能挂起流（否则前端停在思考）
+                result = f"工具执行失败：{exc}"
+            yield {"type": "tool", "name": call["name"], "args": args,
+                   "result": result, "phase": "query", "status": "done"}
             messages.append({
                 "role": "tool",
                 "content": result,
@@ -237,7 +254,9 @@ async def run_agent_stream(
                 elif ev["type"] == "text":
                     text_parts.append(ev["delta"])
                 elif ev["type"] == "tool":
-                    tool_events.append(ev)
+                    # 只收集带结果的事件（running 占位无 result，跳过以避免污染图表兜底解析）
+                    if ev.get("result") is not None:
+                        tool_events.append(ev)
                 elif ev["type"] == "chart":
                     chart_events.append(ev.get("spec") or {})
                 elif ev["type"] == "clarification":
@@ -255,7 +274,9 @@ async def run_agent_stream(
                 elif ev["type"] == "text":
                     text_parts.append(ev["delta"])
                 elif ev["type"] == "tool":
-                    tool_events.append(ev)
+                    # 只收集带结果的事件（running 占位无 result，跳过以避免污染图表兜底解析）
+                    if ev.get("result") is not None:
+                        tool_events.append(ev)
                 elif ev["type"] == "chart":
                     chart_events.append(ev.get("spec") or {})
                 elif ev["type"] == "clarification":

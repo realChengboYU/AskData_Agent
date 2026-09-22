@@ -12,6 +12,9 @@ import { cn } from "@/lib/utils";
 /**
  * 工具调用信息块：复用「思考过程」的折叠样式（蓝边框 / 浅蓝底 / 蓝色触发字）。
  * 展示：调用工具名、参数、结果。用于展示智能体调用 SQL 等工具的过程。
+ *
+ * running（result 尚未返回）时显示加载指示 + 阶段文案（“正在查询数据库…/正在生成图表…”），
+ * 让等待可见、不再像卡死。
  */
 export function ToolCallBlock({
   name,
@@ -24,6 +27,9 @@ export function ToolCallBlock({
 }) {
   const [open, setOpen] = useState(false);
   const argsText = args == null ? "" : JSON.stringify(args, null, 2);
+  const running = result == null;
+  const isChart = name === "render_chart";
+  const runningLabel = isChart ? "正在生成图表…" : "正在查询数据库…";
 
   return (
     <Collapsible
@@ -38,6 +44,15 @@ export function ToolCallBlock({
       >
         <TerminalIcon data-slot="tool-call-icon" className="size-4 shrink-0" />
         <span className="inline-block truncate leading-none">调用工具：{name}</span>
+        {running && (
+          <span
+            data-slot="tool-call-running"
+            className="inline-flex shrink-0 items-center gap-1 text-xs text-[#2563eb]/70"
+          >
+            <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-[#2563eb]/25 border-t-[#2563eb]" />
+            {runningLabel}
+          </span>
+        )}
         <ChevronDownIcon
           data-slot="tool-call-chevron"
           className={cn(
@@ -59,6 +74,15 @@ export function ToolCallBlock({
                 {argsText}
               </pre>
             </>
+          )}
+          {running && (
+            <div
+              data-slot="tool-call-status"
+              className="flex items-center gap-2 text-xs text-[#2563eb]/70"
+            >
+              <span className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-[#2563eb]/25 border-t-[#2563eb]" />
+              {runningLabel}
+            </div>
           )}
           {result != null && result !== "" && (
             <>
