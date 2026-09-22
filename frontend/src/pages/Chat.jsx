@@ -339,6 +339,7 @@ export default function Chat() {
                 threadId={sessionIdRef.current}
                 initialMessages={historyMessages}
                 onFinish={handleRunFinish}
+                onResizeWidth={handleResizeWidth}
               />
             </main>
           </div>

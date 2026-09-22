@@ -136,6 +136,7 @@ export default function AssistantChat({
   threadId,
   initialMessages = [],
   onFinish,
+  onResizeWidth,
 }) {
   const initialState = useMemo(
     () => ({ messages: historyToState(initialMessages), isRunning: false }),
@@ -180,7 +181,7 @@ export default function AssistantChat({
     <AssistantRuntimeProvider runtime={runtime}>
       <ComposerControlsContext.Provider value={composerControls}>
         <TooltipProvider>
-          <Thread />
+          <Thread onResizeWidth={onResizeWidth} />
         </TooltipProvider>
       </ComposerControlsContext.Provider>
     </AssistantRuntimeProvider>

@@ -241,7 +241,7 @@
 .chat-main {
   flex: 1;
   overflow-y: auto;
-  width: min(820px, 94%);
+  width: min(var(--thread-max-width, 60rem), 94%);
   margin: 0 auto;
   display: flex;
   flex-direction: column;
