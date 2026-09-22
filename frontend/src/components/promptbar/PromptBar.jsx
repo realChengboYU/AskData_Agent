@@ -123,6 +123,7 @@ export default function PromptBar({
   efforts = DEFAULT_EFFORTS,
   defaultEffort = '',
   onEffortChange,
+  composerRef,
   busy = false,
   onSend,
   onStop,
@@ -193,6 +194,18 @@ export default function PromptBar({
     setModelOpen(false);
     setEffortOpen(false);
   }, []);
+
+  // 对外暴露“设置输入文本 + 聚焦”能力，供「引用某条回答追问」等填充输入框
+  useEffect(() => {
+    if (!composerRef) return;
+    composerRef.current = {
+      setText: (text) => {
+        setDraft(text || '');
+        requestAnimationFrame(() => inputRef.current?.focus({ preventScroll: true }));
+      },
+      focus: () => inputRef.current?.focus({ preventScroll: true }),
+    };
+  }, [composerRef]);
 
   useLayoutEffect(() => {
     const glow = glowRef.current;

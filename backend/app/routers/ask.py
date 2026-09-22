@@ -5,6 +5,7 @@ import json
 import jwt
 from fastapi import APIRouter, Depends, Header, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from app.config import JWT_ALGORITHM, SECRET_KEY
 from app.schemas import (
@@ -17,8 +18,10 @@ from app.schemas import (
 from app.services.ask_engine import answer_question
 from app.services.pipeline import (
     delete_session,
+    export_session_markdown,
     get_history,
     list_sessions,
+    rename_session,
     resume_clarify,
     run_agent_stream,
 )
@@ -117,3 +120,26 @@ def remove_session(session_id: str) -> dict:
     """删除某个历史会话（连同它的所有 checkpoint / 历史消息）。"""
     ok = delete_session(session_id)
     return {"deleted": ok, "session_id": session_id}
+
+
+class RenameRequest(BaseModel):
+    title: Optional[str] = None
+
+
+@router.patch("/ask/sessions/{session_id}")
+def rename_ask_session(session_id: str, payload: RenameRequest) -> dict:
+    """重命名某个会话（自定义标题；空标题回退为首条用户消息）。"""
+    ok = rename_session(session_id, payload.title)
+    return {"renamed": ok, "session_id": session_id, "title": payload.title or ""}
+
+
+@router.get("/ask/sessions/{session_id}/export")
+def export_ask_session(session_id: str):
+    """导出某会话为 Markdown 文件。"""
+    md = export_session_markdown(session_id)
+    filename = f"deepdata-{(session_id or 'session')[:8]}.md"
+    return StreamingResponse(
+        iter([md]),
+        media_type="text/markdown",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

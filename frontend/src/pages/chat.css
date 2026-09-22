@@ -726,6 +726,75 @@
   text-overflow: ellipsis;
 }
 
+/* 会话操作按钮：悬停显示（重命名 / 导出 / 删除） */
+.side-session-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  opacity: 0;
+  transition: all 0.15s ease;
+}
+.side-session:hover .side-session-action {
+  opacity: 1;
+}
+.side-session-action:hover {
+  background: rgba(37, 99, 235, 0.12);
+  color: #2563eb;
+}
+
+/* 重新命名行：输入框 + 确认 / 取消 */
+.side-session-rename {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px;
+}
+.side-session-rename-input {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+  background: #fff;
+  color: #1e3a8a;
+  font-size: 13px;
+  outline: none;
+}
+.side-session-rename-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+.side-session-rename-ok,
+.side-session-rename-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s ease;
+}
+.side-session-rename-ok { color: #2563eb; }
+.side-session-rename-ok:hover { background: rgba(37, 99, 235, 0.12); }
+.side-session-rename-cancel { color: #94a3b8; }
+.side-session-rename-cancel:hover { background: rgba(148, 163, 184, 0.15); }
+
 /* 用户消息文字在气泡内垂直居中：
    根因是消息 <p> 自带 margin-bottom:16px，把气泡撑高、文字贴顶。清掉边距即可让文字居中。 */
 .aui-user-message-content p {

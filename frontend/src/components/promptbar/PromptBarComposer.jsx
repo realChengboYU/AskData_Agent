@@ -43,7 +43,7 @@ const MODELS = [
 ];
 
 export function PromptBarComposer() {
-  const { onStop, send } = useComposerControls();
+  const { onStop, send, composerRef } = useComposerControls();
   // 是否正在生成回复：驱动「发送 → 停止」的箭头变形
   const busy = useAuiState((s) => s.thread.isRunning);
 
@@ -68,6 +68,7 @@ export function PromptBarComposer() {
         busy={busy}
         onSend={handleSend}
         onStop={onStop}
+        composerRef={composerRef}
         background={THEME.background}
         color={THEME.color}
         menuBackground={THEME.menuBackground}

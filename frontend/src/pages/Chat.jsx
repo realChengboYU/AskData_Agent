@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AssistantChat from '@/components/assistant-chat'
-import { BookOutlined, CheckOutlined, DatabaseOutlined, DeleteOutlined, DoubleLeftOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
+import { BookOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import { LANGS, LANG_LABELS, useI18n } from '../i18n'
-import { deleteSession, getHistory, getSessions } from '../api'
+import { deleteSession, exportSession, getHistory, getSessions, renameSession } from '../api'
 import './chat.css'
 
 function sleep(ms) {
@@ -116,6 +116,9 @@ export default function Chat() {
   // 运行结束后重新拉取历史让消息结构刷新，避免流式状态被覆盖后答案“消失”。
   const [historyVersion, setHistoryVersion] = useState(0)
   const [sessions, setSessions] = useState([])
+  // 正在重命名的会话 id（null=不处于重命名态）
+  const [renamingId, setRenamingId] = useState(null)
+  const [renameInput, setRenameInput] = useState('')
   // 对话列宽度（rem）。悬停对话条左右边缘拖拽可调，限 50–72rem，持久化到 localStorage。
   const [threadWidth, setThreadWidth] = useState(() => {
     const v = Number(localStorage.getItem('askdata_chat_width'))
@@ -213,6 +216,51 @@ export default function Chat() {
       .catch(() => {})
   }
 
+  // 进入重命名态：填入当前标题，显示输入框
+  const startRename = (s) => {
+    setRenamingId(s.session_id)
+    setRenameInput(s.title || '')
+  }
+
+  // 提交重命名：调用后端，更新本地列表标题
+  const submitRename = (sid) => {
+    const title = renameInput.trim()
+    renameSession(sid, title)
+      .then(() => {
+        setSessions((prev) =>
+          prev.map((s) =>
+            s.session_id === sid ? { ...s, title: title || s.title } : s,
+          ),
+        )
+      })
+      .catch(() => {})
+      .finally(() => {
+        setRenamingId(null)
+        setRenameInput('')
+      })
+  }
+
+  const cancelRename = () => {
+    setRenamingId(null)
+    setRenameInput('')
+  }
+
+  // 导出会话为 Markdown：后端返回 Blob，触发下载
+  const exportThisSession = (sid) => {
+    exportSession(sid)
+      .then((blob) => {
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `deepdata-${(sid || 'session').slice(0, 8)}.md`
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+      })
+      .catch(() => {})
+  }
+
   // 挂载时：持久化会话 id，恢复历史消息，并加载侧栏「会话列表」
   useEffect(() => {
     localStorage.setItem('askdata_session', sessionIdRef.current)
@@ -295,27 +343,89 @@ export default function Chat() {
                     key={s.session_id}
                     className={`side-session${s.session_id === sessionIdRef.current ? ' active' : ''}`}
                   >
-                    <button
-                      type="button"
-                      className="side-session-open"
-                      onClick={() => openSession(s.session_id)}
-                      title={s.title}
-                    >
-                      <MessageOutlined className="side-session-icon" />
-                      <span className="side-session-title">{s.title}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="side-session-del"
-                      title="删除会话"
-                      aria-label="删除会话"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        removeSession(s.session_id)
-                      }}
-                    >
-                      <DeleteOutlined />
-                    </button>
+                    {renamingId === s.session_id ? (
+                      <div
+                        className="side-session-rename"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <input
+                          className="side-session-rename-input"
+                          value={renameInput}
+                          autoFocus
+                          onChange={(e) => setRenameInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') submitRename(s.session_id)
+                            if (e.key === 'Escape') cancelRename()
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="side-session-rename-ok"
+                          title="确认"
+                          aria-label="确认"
+                          onClick={() => submitRename(s.session_id)}
+                        >
+                          <CheckOutlined />
+                        </button>
+                        <button
+                          type="button"
+                          className="side-session-rename-cancel"
+                          title="取消"
+                          aria-label="取消"
+                          onClick={cancelRename}
+                        >
+                          <CloseOutlined />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          className="side-session-open"
+                          onClick={() => openSession(s.session_id)}
+                          title={s.title}
+                        >
+                          <MessageOutlined className="side-session-icon" />
+                          <span className="side-session-title">{s.title}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="side-session-action"
+                          title="重命名"
+                          aria-label="重命名"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            startRename(s)
+                          }}
+                        >
+                          <EditOutlined />
+                        </button>
+                        <button
+                          type="button"
+                          className="side-session-action"
+                          title="导出 Markdown"
+                          aria-label="导出"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            exportThisSession(s.session_id)
+                          }}
+                        >
+                          <DownloadOutlined />
+                        </button>
+                        <button
+                          type="button"
+                          className="side-session-del"
+                          title="删除会话"
+                          aria-label="删除会话"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            removeSession(s.session_id)
+                          }}
+                        >
+                          <DeleteOutlined />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))
               )}

@@ -126,4 +126,18 @@ export function deleteSession(sessionId) {
   return api.delete(`/ask/sessions/${encodeURIComponent(sessionId)}`).then((res) => res.data)
 }
 
+// 重命名某个会话（自定义标题；空标题回退为首条用户消息）
+export function renameSession(sessionId, title) {
+  return api
+    .patch(`/ask/sessions/${encodeURIComponent(sessionId)}`, { title })
+    .then((res) => res.data)
+}
+
+// 导出某会话为 Markdown 文件（返回 Blob）
+export function exportSession(sessionId) {
+  return api
+    .get(`/ask/sessions/${encodeURIComponent(sessionId)}/export`, { responseType: 'blob' })
+    .then((res) => res.data)
+}
+
 export default api

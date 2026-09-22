@@ -497,6 +497,9 @@ def list_sessions(limit: int = 50) -> list[dict]:
                     if text:
                         title = text[:30]
                         break
+            stored = _stored_session_title(tid)
+            if stored:
+                title = stored
             sessions.append(
                 {
                     "session_id": tid,
@@ -527,3 +530,57 @@ def delete_session(session_id: Optional[str] = None) -> bool:
         return True
     except Exception:
         return False
+
+
+def _stored_session_title(session_id: str) -> str:
+    """读取用户为会话自定义的标题（存于 langgraph_store 的 session_meta/history 命名空间）。"""
+    try:
+        from app.services.memory import get_store
+        item = get_store().get(("session_meta", "history"), session_id)
+        if item is not None and isinstance(item.value, dict):
+            return str(item.value.get("title") or "").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def rename_session(session_id: Optional[str] = None, title: Optional[str] = None) -> bool:
+    """为会话设置自定义标题；空标题清空（回退为首条用户消息）。"""
+    if not session_id:
+        return False
+    try:
+        from app.services.memory import get_store
+        get_store().put(
+            ("session_meta", "history"), session_id, {"title": (title or "").strip()}
+        )
+        return True
+    except Exception:
+        return False
+
+
+def export_session_markdown(session_id: Optional[str] = None) -> str:
+    """把某会话历史导出成 Markdown（用户/助手消息，含助手 reasoning、工具、图表规格）。"""
+    data = get_history(session_id)
+    msgs = data.get("messages") or []
+    out: list[str] = []
+    for i, m in enumerate(msgs, start=1):
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role")
+        content = str(m.get("content") or "")
+        reasoning = str(m.get("reasoning") or "")
+        if role == "user":
+            out.append(f"## 用户 {i}\n\n{content}\n")
+        else:
+            if reasoning:
+                out.append(f"### 思考 {i}\n\n{reasoning}\n")
+            tools = m.get("tools") or []
+            for t in tools:
+                if isinstance(t, dict):
+                    out.append(
+                        f"### 工具 {t.get('name') or ''}\n\n"
+                        f"```\n{t.get('args')}\n```\n\n"
+                        f"结果：\n\n```\n{t.get('result')}\n```\n"
+                    )
+            out.append(f"### 回答 {i}\n\n{content}\n")
+    return "\n".join(out) or "（空会话）"

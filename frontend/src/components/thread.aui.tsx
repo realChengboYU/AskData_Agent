@@ -60,6 +60,7 @@ import {
   MoreHorizontalIcon,
   PencilIcon,
   PhoneIcon,
+  QuoteIcon,
   RefreshCwIcon,
   SquareIcon,
   ThumbsDownIcon,
@@ -640,10 +641,26 @@ const ComposerAction: FC = () => {
 };
 
 const MessageError: FC = () => {
+  const { t } = useI18n();
   return (
     <MessagePrimitive.Error>
       <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+        <div className="flex items-start justify-between gap-3">
+          <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2 min-w-0" />
+          <ActionBarPrimitive.Reload
+            render={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="aui-message-error-retry flex-none px-3 text-xs"
+              >
+                <RefreshCwIcon className="mr-1 size-3.5" />
+                {t("retry")}
+              </Button>
+            }
+          />
+        </div>
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
@@ -773,6 +790,22 @@ const AssistantMessage: FC = () => {
 
 const AssistantActionBar: FC = () => {
   const { t } = useI18n();
+  const { composerRef } = useComposerControls();
+  // 读取当前助手消息的文本内容，供「引用某条回答追问」填充输入框
+  const messageText = useAuiState((s) => {
+    const parts = (s.message as unknown as { parts?: Array<{ type?: string; text?: string }> })?.parts ?? [];
+    return parts
+      .filter((p) => p.type === "text")
+      .map((p) => p.text ?? "")
+      .join("");
+  });
+  const quoteToAsk = () => {
+    const txt = (messageText || "").trim();
+    if (!txt || !composerRef?.current) return;
+    const q = txt.length > 500 ? `${txt.slice(0, 500)}…` : txt;
+    // 把回答以引用形式填进输入框，用户可继续追加追问
+    composerRef.current.setText(`[引用] ${q}\n\n请继续分析：`);
+  };
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning
@@ -789,6 +822,7 @@ const AssistantActionBar: FC = () => {
         <ActionBarPrimitive.FeedbackNegative render={<TooltipIconButton tooltip={t("notHelpful")} className="data-[submitted=true]:bg-accent data-[submitted=true]:text-accent-foreground" />}><ThumbsDownIcon /></ActionBarPrimitive.FeedbackNegative>
       </AuiIf>
       <ActionBarPrimitive.Reload render={<TooltipIconButton tooltip={t("refresh")} />}><RefreshCwIcon /></ActionBarPrimitive.Reload>
+      <TooltipIconButton tooltip={t("quote")} className="aui-action-bar-quote" onClick={quoteToAsk}><QuoteIcon className="size-4" /></TooltipIconButton>
       <ActionBarMorePrimitive.Root>
         <ActionBarMorePrimitive.Trigger render={<TooltipIconButton tooltip={t("more")} className="data-[state=open]:bg-accent" />}><MoreHorizontalIcon /></ActionBarMorePrimitive.Trigger>
         <ActionBarMorePrimitive.Content

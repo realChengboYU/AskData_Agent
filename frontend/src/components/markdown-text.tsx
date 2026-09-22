@@ -11,8 +11,12 @@ import {
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
-import { type FC, memo, useMemo, useRef } from "react";
-import type { TextMessagePartProps } from "@assistant-ui/react";
+import { type FC, memo, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useAuiState,
+  useMessagePartText,
+  type TextMessagePartProps,
+} from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/tooltip-icon-button";
@@ -50,7 +54,19 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
     };
   }, [stableComponents]);
 
-  return (
+  const text = (useMessagePartText()?.text ?? "") as string;
+  const running = useAuiState((s) => s.thread.isRunning);
+  const [expanded, setExpanded] = useState(false);
+
+  // 长文本折叠：仅在「回答已结束且超长」时触发；流式进行中始终完整展示。
+  const threshold = 900;
+  const collapsible = !running && text.length > threshold;
+
+  useEffect(() => {
+    if (running) setExpanded(false);
+  }, [running]);
+
+  const markdown = (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[[rehypeHighlight, { ignoreMissing: true }]]}
@@ -58,6 +74,31 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
       components={markdownComponents}
       defer
     />
+  );
+
+  if (!collapsible) return markdown;
+
+  return (
+    <div className="aui-md-collapse-wrap relative">
+      {!expanded && (
+        <div className="aui-md-collapse-mask pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent" />
+      )}
+      <div
+        className={cn(
+          "aui-md-collapse-body",
+          !expanded && "max-h-72 overflow-hidden",
+        )}
+      >
+        {markdown}
+      </div>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="aui-md-collapse-toggle mt-1 inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80"
+      >
+        {expanded ? "收起" : `展开全部（${text.length} 字）`}
+      </button>
+    </div>
   );
 };
 

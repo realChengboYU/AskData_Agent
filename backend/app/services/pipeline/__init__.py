@@ -11,8 +11,10 @@
 from app.services.pipeline.llm import get_llm
 from app.services.pipeline.runner import (
     delete_session,
+    export_session_markdown,
     get_history,
     list_sessions,
+    rename_session,
     resume_clarify,
     run_agent,
     run_agent_stream,
@@ -26,4 +28,6 @@ __all__ = [
     "get_history",
     "list_sessions",
     "delete_session",
+    "rename_session",
+    "export_session_markdown",
 ]

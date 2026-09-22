@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import {
   AssistantRuntimeProvider,
   useAssistantTransportRuntime,
@@ -161,9 +161,13 @@ export default function AssistantChat({
     onCancel: () => onFinish?.(),
   })
 
+  // 供「引用某条回答追问」设置输入框文本 + 聚焦
+  const composerRef = useRef(null)
+
   const composerControls = useMemo(
     () => ({
       onStop: () => runtime.thread.stop?.(),
+      composerRef: composerRef,
       // assistant-transport 的 convertAppendMessageToCommand 要求 content 是 parts 数组；
       // 传字符串会被展开成字符、找不到 text part 而被跳过（消息被吞）。这里统一归一化。
       send: (msg) => {
