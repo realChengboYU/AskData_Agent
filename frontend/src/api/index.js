@@ -64,4 +64,47 @@ export function exportSession(sessionId) {
     .then((res) => res.data)
 }
 
+// ===== 数据源管理（分开录入 PG 连接信息，服务端拼接连接串）=====
+
+// 列出当前用户的数据源（不含密码）
+export function getDataSources() {
+  return retry(() => api.get('/datasources').then((res) => res.data))
+}
+
+// 新建数据源：payload = { name, host, port, dbname, username, password }
+export function createDataSource(payload) {
+  return api.post('/datasources', payload).then((res) => res.data)
+}
+
+// 更新数据源（字段可部分提供）
+export function updateDataSource(id, payload) {
+  return api
+    .patch(`/datasources/${encodeURIComponent(id)}`, payload)
+    .then((res) => res.data)
+}
+
+// 删除数据源
+export function deleteDataSource(id) {
+  return api.delete(`/datasources/${encodeURIComponent(id)}`).then((res) => res.data)
+}
+
+// 设为「使用中」（智能体查询用的数据源）
+export function setDataSourceActive(id) {
+  return api
+    .post(`/datasources/${encodeURIComponent(id)}/active`)
+    .then((res) => res.data)
+}
+
+// 测试已保存的数据源连通性
+export function testDataSource(id) {
+  return api
+    .post(`/datasources/${encodeURIComponent(id)}/test`, null, { timeout: 30000 })
+    .then((res) => res.data)
+}
+
+// 测试表单当前值（保存前即可试连）
+export function testDataSourceRaw(payload) {
+  return api.post('/datasources/test', payload, { timeout: 30000 }).then((res) => res.data)
+}
+
 export default api

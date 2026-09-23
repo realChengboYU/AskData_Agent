@@ -17,6 +17,7 @@ from openai import APITimeoutError
 
 from app.datasource.pg import PG_CONNECTION_STRING
 from app.prompt import build_messages
+from app.services import datasource_store as ds
 from app.services.pipeline.chart import (
     build_spec_from_tool_events,
     is_chart_call,
@@ -266,7 +267,13 @@ async def run_agent_stream(
         if not api_key:
             raise RuntimeError("未配置 LLM：请在 backend/.env 设置 LLM_API_KEY")
         llm = ChatDeepSeek(model=model, api_key=api_key, base_url=base_url, temperature=0.7, timeout=LLM_TIMEOUT)
-        tools = get_sql_tools(llm, db_url=PG_CONNECTION_STRING)
+        # 优先用该用户在「数据源管理」里标记为「使用中」的数据源（服务端拼接连接串），
+        # 没有则回退到环境变量 PG_CONNECTION_STRING（旧配置）。
+        try:
+            db_url = ds.get_active_db_url(user_key or "anonymous") or PG_CONNECTION_STRING
+        except Exception:
+            db_url = PG_CONNECTION_STRING
+        tools = get_sql_tools(llm, db_url=db_url)
         route = route_intent(q, bool(tools), has_recent_result(history))
 
         if route == "database_query":

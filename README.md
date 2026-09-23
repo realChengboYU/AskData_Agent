@@ -68,11 +68,13 @@ AskData_Agent/
       ├─ routers/
       │  ├─ assistant.py     # POST /api/assistant（assistant-transport SSE）
       │  ├─ auth.py          # POST /api/login（JWT）
+      │  ├─ datasources.py   # 数据源管理：CRUD / 测试 / 设为使用中
       │  └─ ask.py           # GET history + GET/DELETE/PATCH sessions + GET export
       ├─ datasource/
       │  └─ pg.py            # PG 连接串（仅从环境变量读取）+ get_pg_database
       ├─ tools/SQLTools/     # SQLDatabaseToolkit 封装（4 个 SQL 工具）
       └─ services/
+         ├─ datasource_store.py  # 数据源存储 + 连接串拼接 + 测试
          ├─ pipeline/        # LangGraph：graph / llm / runner / nodes
          └─ memory/store.py  # 记忆存储（checkpointer）
 ```
@@ -162,6 +164,13 @@ pnpm dev          # 或 npm run dev  → http://127.0.0.1:5173
 | PATCH | `/api/ask/sessions/{session_id}` | 重命名会话（自定义标题；空标题回退首条用户消息） |
 | DELETE | `/api/ask/sessions/{session_id}` | 删除某会话及其全部历史 |
 | GET | `/api/ask/sessions/{session_id}/export` | 导出某会话为 Markdown 文件 |
+| GET | `/api/datasources` | 列出当前用户的数据源（不含密码） |
+| POST | `/api/datasources` | 新建数据源（分开传 host/port/db/用户名/密码，服务端拼接连接串） |
+| PATCH | `/api/datasources/{id}` | 更新数据源（字段可部分提供；密码留空不变） |
+| DELETE | `/api/datasources/{id}` | 删除数据源 |
+| POST | `/api/datasources/{id}/test` | 测试已保存数据源连通性（返回 ok + 概要/原因） |
+| POST | `/api/datasources/{id}/active` | 设为「使用中」（智能体查询用的数据源） |
+| POST | `/api/datasources/test` | 按表单当前值试连（保存前即可测试） |
 
 ### 流式协议（`/api/assistant`）
 
@@ -188,8 +197,9 @@ pnpm dev          # 或 npm run dev  → http://127.0.0.1:5173
 - [x] 工具调用信息可视化（卡片）
 - [x] 会话历史 / 列表 / 删除
 - [x] 对话宽度拖拽调节
-- [ ] 数据源管理界面（多数据源切换）
+- [x] 数据源管理界面（PostgreSQL：分开录入 / 服务端拼接连接串 / 测试 / 设为使用中）
 - [ ] 图表一键生成（回答 → 可视化）
+- [ ] 多数据源类型（MySQL 等）与按消息切换数据源
 - [ ] Docker / CI 部署
 
 ---

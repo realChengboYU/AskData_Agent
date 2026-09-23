@@ -1,0 +1,534 @@
+/* 数据源管理抽屉——沿用 DeepData 蓝色系，行式列表 + 激活左竖线，
+   唯一的"重"元素是表单里的连接串预览块（navy 底 / 等宽 / 密码打码）。 */
+
+/* ---- 遮罩 + 抽屉 ---- */
+.ds-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(15, 23, 42, 0.28);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.28s ease, visibility 0.28s ease;
+}
+.ds-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.ds-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 480px;
+  max-width: 92vw;
+  z-index: 901;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-left: 1px solid #dbeafe;
+  box-shadow: -18px 0 48px rgba(30, 58, 138, 0.16);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.32s;
+}
+.ds-drawer.open {
+  transform: translateX(0);
+  visibility: visible;
+}
+
+.ds-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 10px;
+}
+.ds-drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ds-drawer-title h2 {
+  margin: 0;
+  font-family: 'Geist Variable', system-ui, sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #1e3a8a;
+}
+.ds-pg-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 7px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #1e3a8a;
+  font-size: 11px;
+  font-weight: 600;
+}
+.ds-pg-badge svg {
+  color: #2563eb;
+  width: 14px;
+  height: 14px;
+}
+.ds-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+.ds-close:hover {
+  background: #eef4ff;
+  color: #1e3a8a;
+}
+.ds-close:focus-visible,
+.ds-btn:focus-visible,
+.ds-back:focus-visible,
+.ds-act:focus-visible,
+.ds-act-use:focus-visible,
+.ds-input:focus-visible,
+.ds-item-main:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.ds-drawer-sub {
+  margin: 0;
+  padding: 0 20px 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #64748b;
+}
+.ds-bannertest {
+  margin: 0 20px 4px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.ds-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 20px 24px;
+}
+
+/* ---- 列表 ---- */
+.ds-listwrap {
+  padding-top: 4px;
+}
+.ds-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 2px 10px;
+}
+.ds-list-count {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+.ds-list {
+  display: flex;
+  flex-direction: column;
+}
+.ds-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 8px 11px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.ds-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+  transition: background 0.16s ease;
+}
+.ds-item.active::before {
+  background: #2563eb;
+}
+.ds-item.active {
+  background: #f5f9ff;
+}
+.ds-item-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+}
+.ds-item-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+.ds-item-dot.on {
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+}
+.ds-item-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ds-item-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a8a;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ds-item-sub {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  color: #94a3b8;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ds-item-side {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.ds-active-tag {
+  font-style: normal;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ds-act-use {
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease;
+}
+.ds-act-use:hover:not(:disabled) {
+  background: #eef4ff;
+}
+.ds-act-use:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ds-item-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.ds-item:hover .ds-item-actions,
+.ds-item:focus-within .ds-item-actions {
+  opacity: 1;
+}
+.ds-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.ds-act:hover:not(:disabled) {
+  background: #eef4ff;
+  color: #2563eb;
+}
+.ds-act:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ds-act-del:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* ---- 空态 ---- */
+.ds-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 56px 24px 40px;
+}
+.ds-empty-mark {
+  color: #bfdbfe;
+  margin-bottom: 6px;
+}
+.ds-empty-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: #1e3a8a;
+}
+.ds-empty-sub {
+  margin: 0 0 16px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #64748b;
+  max-width: 260px;
+}
+
+/* ---- 表单 ---- */
+.ds-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 4px;
+}
+.ds-form-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ds-back {
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px 4px 4px;
+  border-radius: 7px;
+}
+.ds-back:hover {
+  background: #eef4ff;
+  color: #2563eb;
+}
+.ds-form-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3a8a;
+}
+.ds-row2 {
+  display: flex;
+  gap: 10px;
+}
+.ds-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ds-field-grow {
+  flex: 1;
+  min-width: 0;
+}
+.ds-field-port {
+  width: 92px;
+  flex: none;
+}
+.ds-field label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #475569;
+}
+.ds-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 9px;
+  background: #fff;
+  color: #1e3a8a;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.ds-input::placeholder {
+  color: #b6c2d6;
+}
+.ds-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.ds-input-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+}
+.ds-pwd-wrap {
+  position: relative;
+}
+.ds-pwd-wrap .ds-input {
+  padding-right: 40px;
+}
+.ds-pwd-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+}
+.ds-pwd-toggle:hover {
+  background: #eef4ff;
+  color: #2563eb;
+}
+.ds-hint {
+  font-size: 11.5px;
+  color: #94a3b8;
+}
+
+/* ---- 连接串预览（唯一的重元素）---- */
+.ds-conn {
+  border-radius: 11px;
+  background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
+  padding: 12px 15px 14px;
+  box-shadow: 0 8px 22px rgba(30, 58, 138, 0.28);
+}
+.ds-conn-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #93c5fd;
+  margin-bottom: 7px;
+}
+.ds-conn-code {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: #e0ecff;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+/* ---- 测试结果 ---- */
+.ds-test {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.ds-test .anticon {
+  font-size: 14px;
+}
+.ds-test.ok {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+}
+.ds-test.err {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  color: #be123c;
+}
+
+/* ---- 按钮 ---- */
+.ds-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 2px;
+}
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s ease, opacity 0.16s ease, transform 0.1s ease;
+}
+.ds-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.ds-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ds-btn-primary {
+  background: #2563eb;
+  color: #fff;
+}
+.ds-btn-primary:hover:not(:disabled) {
+  background: #1e40af;
+}
+.ds-btn-ghost {
+  background: #fff;
+  border: 1px solid #dbeafe;
+  color: #1e3a8a;
+}
+.ds-btn-ghost:hover:not(:disabled) {
+  background: #eef4ff;
+  border-color: #2563eb;
+}
+.ds-btn-sm {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  border-radius: 8px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-drawer,
+  .ds-overlay {
+    transition: none;
+  }
+}

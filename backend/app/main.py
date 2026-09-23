@@ -5,7 +5,7 @@ load_dotenv()  # 加载 backend/.env（LLM 配置 / DATABASE_URL）
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import ask, assistant, auth, skills
+from app.routers import ask, assistant, auth, datasources, skills
 
 app = FastAPI(
     title="DeepData API",
@@ -25,6 +25,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(ask.router)
 app.include_router(assistant.router)
+app.include_router(datasources.router)
 app.include_router(skills.router)
 
 

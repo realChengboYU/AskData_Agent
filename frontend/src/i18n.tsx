@@ -71,6 +71,30 @@ const dict: Record<Lang, Record<string, string>> = {
     noSessions: "暂无会话",
     toggleSidebar: "折叠 / 展开侧边栏",
     model: "模型",
+    "ds.title": "数据源",
+    "ds.sub": "连接 PostgreSQL 数据库，供智能体查询",
+    "ds.close": "关闭",
+    "ds.backTo": "返回列表",
+    "ds.new": "新建数据源",
+    "ds.edit": "编辑数据源",
+    "ds.name": "名称",
+    "ds.host": "地址",
+    "ds.port": "端口",
+    "ds.database": "数据库",
+    "ds.username": "用户名",
+    "ds.password": "密码",
+    "ds.passwordKeep": "留空保持不变",
+    "ds.passwordKeepHint": "留空则保持原有密码不变",
+    "ds.connString": "连接串",
+    "ds.test": "测试连接",
+    "ds.save": "保存",
+    "ds.yours": "{n} 个数据源",
+    "ds.emptyTitle": "还没有数据源",
+    "ds.emptySub": "添加一个 PostgreSQL 连接，就能开始向数据库提问",
+    "ds.active": "使用中",
+    "ds.setActive": "设为使用中",
+    "ds.delete": "删除",
+    "ds.confirmDelete": "确定删除数据源「{name}」？此操作不可撤销",
   },
   en: {
     welcome: "Let's start chatting!",
@@ -122,13 +146,37 @@ const dict: Record<Lang, Record<string, string>> = {
     noSessions: "No conversations yet",
     toggleSidebar: "Toggle sidebar",
     model: "Model",
+    "ds.title": "Data sources",
+    "ds.sub": "Connect a PostgreSQL database for the assistant to query",
+    "ds.close": "Close",
+    "ds.backTo": "Back",
+    "ds.new": "New data source",
+    "ds.edit": "Edit data source",
+    "ds.name": "Name",
+    "ds.host": "Host",
+    "ds.port": "Port",
+    "ds.database": "Database",
+    "ds.username": "Username",
+    "ds.password": "Password",
+    "ds.passwordKeep": "Leave empty to keep",
+    "ds.passwordKeepHint": "Leave empty to keep the current password",
+    "ds.connString": "Connection string",
+    "ds.test": "Test connection",
+    "ds.save": "Save",
+    "ds.yours": "{n} data sources",
+    "ds.emptyTitle": "No data sources yet",
+    "ds.emptySub": "Add a PostgreSQL connection to start asking your database",
+    "ds.active": "In use",
+    "ds.setActive": "Set active",
+    "ds.delete": "Delete",
+    "ds.confirmDelete": "Delete data source \"{name}\"? This can't be undone.",
   },
 };
 
 type I18nValue = {
   lang: Lang;
   setLang: (lang: Lang) => void;
-  t: (key: string) => string;
+  t: (key: string, vars?: Record<string, string | number>) => string;
 };
 
 const I18nContext = createContext<I18nValue | undefined>(undefined);
@@ -157,7 +205,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string) => dict[lang][key] ?? dict.en[key] ?? key,
+    (key: string, vars?: Record<string, string | number>) => {
+      let str = dict[lang][key] ?? dict.en[key] ?? key;
+      if (vars) for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, String(v));
+      return str;
+    },
     [lang],
   );
 
@@ -170,6 +222,10 @@ export function useI18n(): I18nValue {
   const ctx = useContext(I18nContext);
   if (ctx) return ctx;
   // 兜底：Provider 之外使用时返回默认（简体中文），setLang 为空操作。
-  const fallbackT = (key: string) => dict.zh[key] ?? dict.en[key] ?? key;
+  const fallbackT = (key: string, vars?: Record<string, string | number>) => {
+    let str = dict.zh[key] ?? dict.en[key] ?? key;
+    if (vars) for (const [k, v] of Object.entries(vars)) str = str.replace(`{${k}}`, String(v));
+    return str;
+  };
   return { lang: "zh", setLang: () => {}, t: fallbackT };
 }
