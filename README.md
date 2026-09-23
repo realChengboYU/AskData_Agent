@@ -32,7 +32,7 @@ DeepData 是一个**自然语言数据问答智能体**：你用中文描述想�
 用户一句话
    │
    ▼
-FastAPI /api/ask/stream (SSE)
+FastAPI /api/assistant（assistant-transport SSE，SDK: assistant_stream）
    │  多轮历史（checkpointer，按 session_id）
    ▼
 LangGraph 智能体
@@ -58,7 +58,7 @@ AskData_Agent/
 │     │  ├─ thread.aui.tsx   # assistant-ui Thread 封装（含自定义工具卡渲染）
 │     │  ├─ promptbar/       # 输入栏（发送/停止/模型选择）
 │     │  └─ assistant-ui/    # reasoning / tool-call / tool-group 等元素
-│     └─ api/index.js        # Axios + SSE 解析封装
+│     └─ api/index.js        # Axios 封装（登录 / 会话列表 / 历史 / 重命名 / 导出 / 删除）
 │
 └─ backend/                  # FastAPI 后端
    └─ app/
@@ -66,8 +66,9 @@ AskData_Agent/
       ├─ config.py           # JWT / DATABASE_URL / 演示账号
       ├─ schemas.py          # 请求/响应模型
       ├─ routers/
+      │  ├─ assistant.py     # POST /api/assistant（assistant-transport SSE）
       │  ├─ auth.py          # POST /api/login（JWT）
-      │  └─ ask.py           # /api/ask, /api/ask/stream, history, sessions
+      │  └─ ask.py           # GET history + GET/DELETE/PATCH sessions + GET export
       ├─ datasource/
       │  └─ pg.py            # PG 连接串（仅从环境变量读取）+ get_pg_database
       ├─ tools/SQLTools/     # SQLDatabaseToolkit 封装（4 个 SQL 工具）
@@ -155,18 +156,25 @@ pnpm dev          # 或 npm run dev  → http://127.0.0.1:5173
 |------|------|------|
 | GET | `/api/health` | 健康检查 |
 | POST | `/api/login` | 登录，返回 JWT + 用户信息 |
-| POST | `/api/ask` | 同步问答，返回 `{ question, answer, reasoning, sql, chart, session_id }` |
-| POST | `/api/ask/stream` | **流式问答（SSE）**，逐块推送推理/回答/工具/完成事件 |
+| POST | `/api/assistant` | **流式问答（assistant-transport SSE）**，逐块推送推理/回答/工具/图表/完成状态（经 `assistant_stream` SDK） |
 | GET | `/api/ask/history?session_id=` | 读取某会话历史（含 `reasoning`、`tools`） |
 | GET | `/api/ask/sessions` | 枚举历史会话列表（按最近更新倒序） |
+| PATCH | `/api/ask/sessions/{session_id}` | 重命名会话（自定义标题；空标题回退首条用户消息） |
 | DELETE | `/api/ask/sessions/{session_id}` | 删除某会话及其全部历史 |
+| GET | `/api/ask/sessions/{session_id}/export` | 导出某会话为 Markdown 文件 |
 
-### SSE 事件格式（`/api/ask/stream`）
+### 流式协议（`/api/assistant`）
+
+前端 `assistant-ui` 的 `assistant-transport` 协议，经 `assistant_stream`（官方后端 SDK）序列化为 SSE：
+带心跳保活与 `id:` 序号（供断线重连）。后端把 agent 内部事件（见下）转成 `update-state` 增量推给前端。
+
+### agent 内部事件（`run_agent_stream` 产出，非线上帧）
 
 ```jsonc
 {"type":"reasoning","delta":"模型的思考增量"}
 {"type":"text","delta":"回答增量"}
-{"type":"tool","name":"sql_db_query","args":{...},"result":"..."}   // 工具调用
+{"type":"tool","name":"sql_db_query","args":{...},"result":"...","status":"running|done"}   // 工具调用
+{"type":"chart","spec":{...}}      // 图表
 {"type":"error","error":"错误信息"}
 {"type":"done","answer":"...","reasoning":["..."],"tools":[{"name","args","result"}],"session_id":"..."}
 ```

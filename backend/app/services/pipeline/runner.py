@@ -1,8 +1,8 @@
 """
-对话管线（pipeline）的运行入口：一次多轮对话。
+对话管线（pipeline）的运行入口：一次多轮流式对话。
 
-对外暴露 `run_agent(question, session_id, user_key) -> dict`，
-返回 {question, answer, session_id}。
+对外暴露 `run_agent_stream(question, session_id, user_key) -> AsyncIterator[dict]`，
+逐块产出 reasoning / text / tool / clarification / chart / error / done 事件。
 """
 
 import asyncio
@@ -13,7 +13,6 @@ import time
 import uuid
 from typing import AsyncIterator, Optional
 
-from langsmith import traceable
 from openai import APITimeoutError
 
 from app.datasource.pg import PG_CONNECTION_STRING
@@ -48,36 +47,6 @@ _CHART_INTENT_WORDS = ("可视化", "柱状图", "折线图", "饼图", "条形�
 
 def _text_wants_chart(text: str) -> bool:
     return bool(text) and any(w in text for w in _CHART_INTENT_WORDS)
-
-
-@traceable(run_type="chain", name="agent.run")
-def run_agent(
-    question: str,
-    session_id: Optional[str] = None,
-    user_key: Optional[str] = None,
-) -> dict:
-    """跑一次多轮对话（带短期记忆）。"""
-    q = (question or "").strip()
-    if not q:
-        return {
-            "question": q,
-            "answer": "请输入内容后再发送。",
-            "reasoning": [],
-            "session_id": session_id,
-        }
-
-    thread_id = session_id or f"anon-{uuid.uuid4().hex}"
-    config = {"configurable": {"thread_id": thread_id}}
-    state = _GRAPH.invoke(
-        {"question": q, "user_key": user_key or thread_id},
-        config,
-    )
-    return {
-        "question": q,
-        "answer": state.get("answer", ""),
-        "reasoning": state.get("reasoning", []),
-        "session_id": thread_id,
-    }
 
 
 # 结果缓存（C）：对「同一工具 + 同一参数」的调用结果做短 TTL 缓存。
@@ -418,41 +387,6 @@ async def run_agent_stream(
         "tools": tool_events,
         "session_id": thread_id,
     }
-
-
-def resume_clarify(
-    session_id: Optional[str],
-    option_id: str,
-    user_key: Optional[str] = None,
-) -> dict:
-    """用户对澄清选择后的恢复：把选择写入历史并继续生成结果。
-
-    返回 dict：{question, answer, reasoning, session_id}。
-    """
-    if not session_id:
-        raise ValueError("缺少会话 id")
-    pending = pop_pending(session_id) or {}
-    options = pending.get("options") or []
-    selected = next(
-        (o for o in options if str(o.get("id")) == str(option_id)),
-        None,
-    )
-    if not selected:
-        raise ValueError("无效的澄清选项")
-    label = selected.get("label") or str(selected.get("id"))
-
-    history = get_history(session_id).get("messages") or []
-    # 把澄清一问一答写进历史，方便后续生成引用用户的选择
-    full = history + [
-        {"role": "assistant", "content": pending.get("question", "请补充口径。"), "clarification": True},
-        {"role": "user", "content": f"我选择：{label}。"},
-    ]
-    config = {"configurable": {"thread_id": session_id}}
-    try:
-        _GRAPH.update_state(config, {"messages": full})
-    except Exception:
-        pass
-    return run_agent(f"基于我选择「{label}」，请继续。", session_id, user_key)
 
 
 def _resolve_option(pending: dict, option_label: str) -> dict:
