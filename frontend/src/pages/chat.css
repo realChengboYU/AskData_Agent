@@ -870,3 +870,27 @@
 .mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+/* ---- 对话视图 / 数据源视图（都保持挂载，用 display 切换以保留对话状态）---- */
+.chat-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.ds-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.chat-view.hidden,
+.ds-view.hidden {
+  display: none;
+}
+
+/* 数据源视图下的侧边栏：隐藏会话历史，只保留导航按钮 + 名字 */
+.chat-sidebar.in-ds .side-sessions,
+.chat-sidebar.in-ds .side-section {
+  display: none;
+}

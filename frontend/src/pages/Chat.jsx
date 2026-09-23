@@ -294,7 +294,7 @@ export default function Chat() {
 
   return (
     <div className="chat">
-          <aside className={`chat-sidebar${sidebarOpen ? '' : ' collapsed'}`}>
+          <aside className={`chat-sidebar${sidebarOpen ? '' : ' collapsed'}${dsView ? ' in-ds' : ''}`}>
             <div className="side-brand">
               <img
                 className="side-mark"
@@ -314,13 +314,13 @@ export default function Chat() {
               </button>
             </div>
 
-            <button type="button" className="side-new" onClick={newChat}>
-              <PlusOutlined />
-              <span>{t('newChat')}</span>
+            <button type="button" className="side-new" onClick={() => (dsView ? setDsView(false) : newChat())}>
+              {dsView ? <MessageOutlined /> : <PlusOutlined />}
+              <span>{dsView ? t('ds.backChat') : t('newChat')}</span>
             </button>
 
             <div className="side-icons">
-              <button type="button" className="side-icon" title={t('newChat')} onClick={newChat}>
+              <button type="button" className="side-icon" title={dsView ? t('ds.backChat') : t('newChat')} onClick={() => (dsView ? setDsView(false) : newChat())}>
                 <MessageOutlined />
               </button>
               <button type="button" className="side-icon" title="知识库">
@@ -441,26 +441,29 @@ export default function Chat() {
           </aside>
 
           <div className="chat-main" style={{ ['--thread-max-width']: `${threadWidth}rem` }}>
-            {dsView ? (
-              <DataSources onBackToChat={() => setDsView(false)} />
-            ) : (
-              <>
-                <header className="chat-head">
-                  <div className="chat-head-right">
-                    <span className="chat-user">{user?.name || 'deepdata'}</span>
-                    <button className="chat-logout" onClick={logout}>{t('logout')}</button>
-                  </div>
-                </header>
-                <main className="chat-body">
-                  <AssistantChat
-                    key={`${sessionIdRef.current}:${historyVersion}`}
-                    threadId={sessionIdRef.current}
-                    initialMessages={historyMessages}
-                    onFinish={handleRunFinish}
-                    onResizeWidth={handleResizeWidth}
-                  />
-                </main>
-              </>
+            {/* 两个视图都保持挂载，用 display 切换：切到数据源再返回时，
+                AssistantChat 的内部状态（滚动 / 草稿 / 展开的思考 / 进行中的流）得以保留。 */}
+            <div className={`chat-view${dsView ? ' hidden' : ''}`}>
+              <header className="chat-head">
+                <div className="chat-head-right">
+                  <span className="chat-user">{user?.name || 'deepdata'}</span>
+                  <button className="chat-logout" onClick={logout}>{t('logout')}</button>
+                </div>
+              </header>
+              <main className="chat-body">
+                <AssistantChat
+                  key={`${sessionIdRef.current}:${historyVersion}`}
+                  threadId={sessionIdRef.current}
+                  initialMessages={historyMessages}
+                  onFinish={handleRunFinish}
+                  onResizeWidth={handleResizeWidth}
+                />
+              </main>
+            </div>
+            {dsView && (
+              <div className="ds-view">
+                <DataSources onBackToChat={() => setDsView(false)} />
+              </div>
             )}
           </div>
         </div>
