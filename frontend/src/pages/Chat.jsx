@@ -322,18 +322,23 @@ export default function Chat() {
             <div className="side-icons">
               <button type="button" className="side-icon" title={t('newChat')} onClick={newChat}>
                 <MessageOutlined />
+                <span className="side-icon-label">{t('newChat')}</span>
               </button>
-              <button type="button" className="side-icon" title="知识库">
+              <button type="button" className="side-icon" title={t('nav.kb')}>
                 <BookOutlined />
+                <span className="side-icon-label">{t('nav.kb')}</span>
               </button>
               <button type="button" className={`side-icon${dsView ? ' active' : ''}`} title={t('ds.title')} onClick={() => setDsView(true)}>
                 <DatabaseOutlined />
+                <span className="side-icon-label">{t('ds.title')}</span>
               </button>
-              <button type="button" className="side-icon" title="新建窗口">
+              <button type="button" className="side-icon" title={t('nav.window')}>
                 <PlusSquareOutlined />
+                <span className="side-icon-label">{t('nav.window')}</span>
               </button>
-              <button type="button" className="side-icon" title="搜索">
+              <button type="button" className="side-icon" title={t('nav.search')}>
                 <SearchOutlined />
+                <span className="side-icon-label">{t('nav.search')}</span>
               </button>
             </div>
 

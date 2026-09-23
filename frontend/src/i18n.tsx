@@ -107,6 +107,9 @@ const dict: Record<Lang, Record<string, string>> = {
     "ds.embedded": "嵌入式数据库",
     "ds.testFail": "测试失败",
     "ds.saveFail": "保存失败",
+    "nav.kb": "知识库",
+    "nav.window": "新建窗口",
+    "nav.search": "搜索",
   },
   en: {
     welcome: "Let's start chatting!",
@@ -194,6 +197,9 @@ const dict: Record<Lang, Record<string, string>> = {
     "ds.embedded": "Embedded database",
     "ds.testFail": "Test failed",
     "ds.saveFail": "Save failed",
+    "nav.kb": "Knowledge base",
+    "nav.window": "New window",
+    "nav.search": "Search",
   },
 };
 
