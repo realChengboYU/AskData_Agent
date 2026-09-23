@@ -320,7 +320,7 @@ export default function Chat() {
             </button>
 
             <div className="side-icons">
-              <button type="button" className="side-icon" title={dsView ? t('ds.backChat') : t('newChat')} onClick={() => (dsView ? setDsView(false) : newChat())}>
+              <button type="button" className="side-icon" title={t('newChat')} onClick={newChat}>
                 <MessageOutlined />
               </button>
               <button type="button" className="side-icon" title="知识库">

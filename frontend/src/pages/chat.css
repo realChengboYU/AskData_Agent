@@ -894,3 +894,14 @@
 .chat-sidebar.in-ds .side-section {
   display: none;
 }
+/* 数据源视图「拉宽」后：保留导航图标（数据源/知识库/等），使其仍可见 */
+.chat-sidebar.in-ds:not(.collapsed) .side-icons {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 12px;
+  padding-left: 6px;
+}

@@ -485,9 +485,13 @@ export default function DataSources({ onBackToChat }) {
   return (
     <div className="dsrc-page">
       <header className="dsrc-topbar">
-        <button type="button" className="dsrc-back" onClick={goBack}>
-          ← {view === 'list' ? t('ds.backChat') : t('ds.backTo')}
-        </button>
+        {/* 列表视图不显示返回按钮（返回对话走侧边栏「返回对话」）；
+            新建/编辑步骤保留，用于页内返回（配置→选类型 / 编辑→列表）。 */}
+        {view !== 'list' && (
+          <button type="button" className="dsrc-back" onClick={goBack}>
+            ← {(view === 'new' && newStep === 'form') ? t('ds.prev') : t('ds.backTo')}
+          </button>
+        )}
         <span className="dsrc-topbar-title">{title}</span>
         <span className="dsrc-topbar-badge">
           <DatabaseGlyph size={15} /> PostgreSQL
