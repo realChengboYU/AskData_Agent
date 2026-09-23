@@ -6,7 +6,10 @@
 """
 
 import asyncio
+import hashlib
 import json
+import os
+import time
 import uuid
 from typing import AsyncIterator, Optional
 
@@ -77,6 +80,47 @@ def run_agent(
     }
 
 
+# 结果缓存（C）：对「同一工具 + 同一参数」的调用结果做短 TTL 缓存。
+# 同一问题重复提问会生成相同的 SQL，命中缓存后可直接复用，避免重复查库 / 重复生成。
+_TOOL_CACHE_TTL = float(os.getenv("TOOL_CACHE_TTL", "60"))
+_TOOL_CACHE: dict[str, tuple[float, str]] = {}
+
+
+def _tool_cache_key(name: str, args: dict) -> str:
+    try:
+        payload = json.dumps(args or {}, sort_keys=True, ensure_ascii=False)
+    except Exception:
+        payload = str(args or {})
+    return f"{name}:{hashlib.md5(payload.encode('utf-8')).hexdigest()}"
+
+
+def _cached_invoke_tool(tools: list, call: dict) -> str:
+    """执行工具，命中 TTL 缓存时直接返回；否则执行并入缓存。"""
+    name = call.get("name") or ""
+    args = call.get("args") or {}
+    key = _tool_cache_key(name, args)
+    now = time.monotonic()
+    cached = _TOOL_CACHE.get(key)
+    if cached is not None and cached[0] > now:
+        return cached[1]
+    result = _invoke_tool(tools, call)
+    _TOOL_CACHE[key] = (now + _TOOL_CACHE_TTL, result)
+    return result
+
+
+async def _invoke_tools_parallel(tools: list, calls: list) -> list[str]:
+    """并行执行多个互相独立的工具调用（B），用线程池跑同步工具，保持调用顺序。"""
+    results: list[str] = [""] * len(calls)
+    sem = asyncio.Semaphore(4)  # 限制并发，避免一次性打爆数据源
+
+    async def _run(i: int, call: dict) -> None:
+        async with sem:
+            results[i] = await asyncio.to_thread(_cached_invoke_tool, tools, call)
+
+    await asyncio.gather(*[_run(i, call) for i, call in enumerate(calls)])
+    return results
+
+
 def _accumulate_tool_calls(tool_call_chunks: list) -> list:
     """把 astream 的 tool_call_chunks 分片按 index 合并成完整 tool_calls。"""
     groups: dict = {}
@@ -144,51 +188,66 @@ async def _agent_stream(llm, tools: list, messages: list, max_iters: int = 8, st
         if not calls:
             break
         clarification = None
+        chart_calls: list = []
+        query_calls: list = []
         for call in calls:
-            args = call.get("args") or {}
             if is_chart_call(call):
-                # 正在生成图表…（先发 running，前端显示加载态；结果稍后带出）
-                yield {"type": "tool", "name": call["name"], "args": args,
-                       "result": None, "phase": "chart", "status": "running"}
-                # 让前端先收到 running 帧，再继续（否则会被并到同一个 update-state，看不到加载态）
-                await asyncio.sleep(0)
-                if state is not None:
-                    state["chart_attempted"] = True
-                if not chart_yielded:
-                    spec = normalize_chart_spec(args)
-                    if spec:
-                        yield {"type": "chart", "spec": spec}
-                        chart_yielded = True
-                messages.append({
-                    "role": "tool",
-                    "content": "图表已生成并在界面中展示给用户，请用文字解读结果。",
-                    "tool_call_id": call["id"],
-                    "name": call["name"],
-                })
-                yield {"type": "tool", "name": call["name"], "args": args,
-                       "result": "图表已生成", "phase": "chart", "status": "done"}
+                chart_calls.append(call)
                 continue
             cl = parse_clarify(call)
             if cl is not None:
-                clarification = cl
+                if clarification is None:
+                    clarification = cl
                 continue
-            # 正在查询数据库…
+            query_calls.append(call)
+
+        # 图表调用：被拦截（不真正执行工具），只发 running → chart → done
+        for call in chart_calls:
+            args = call.get("args") or {}
             yield {"type": "tool", "name": call["name"], "args": args,
-                   "result": None, "phase": "query", "status": "running"}
-            # 让前端先收到 running 帧，再执行工具（否则会被并到同一个 update-state，看不到加载态）
+                   "result": None, "phase": "chart", "status": "running"}
+            # 让前端先收到 running 帧，再继续（否则会被并到同一个 update-state，看不到加载态）
             await asyncio.sleep(0)
-            try:
-                result = _invoke_tool(tools, call)
-            except Exception as exc:  # 工具执行失败也不能挂起流（否则前端停在思考）
-                result = f"工具执行失败：{exc}"
-            yield {"type": "tool", "name": call["name"], "args": args,
-                   "result": result, "phase": "query", "status": "done"}
+            if state is not None:
+                state["chart_attempted"] = True
+            if not chart_yielded:
+                spec = normalize_chart_spec(args)
+                if spec:
+                    yield {"type": "chart", "spec": spec}
+                    chart_yielded = True
             messages.append({
                 "role": "tool",
-                "content": result,
+                "content": "图表已生成并在界面中展示给用户，请用文字解读结果。",
                 "tool_call_id": call["id"],
                 "name": call["name"],
             })
+            yield {"type": "tool", "name": call["name"], "args": args,
+                   "result": "图表已生成", "phase": "chart", "status": "done"}
+
+        # 数据库查询（B：并行执行互不依赖的工具）：
+        # 先全部发 running（前端同时显示多个进行中），再并行执行并统一回填结果。
+        if query_calls:
+            for call in query_calls:
+                args = call.get("args") or {}
+                yield {"type": "tool", "name": call["name"], "args": args,
+                       "result": None, "phase": "query", "status": "running"}
+            # 让前端先收到 running 帧，再执行工具（否则会被并到同一个 update-state，看不到加载态）
+            await asyncio.sleep(0)
+            try:
+                results = await _invoke_tools_parallel(tools, query_calls)
+            except Exception as exc:  # 工具执行失败也不能挂起流（否则前端停在思考）
+                results = [f"工具执行失败：{exc}"] * len(query_calls)
+            for call, result in zip(query_calls, results):
+                args = call.get("args") or {}
+                yield {"type": "tool", "name": call["name"], "args": args,
+                       "result": result, "phase": "query", "status": "done"}
+                messages.append({
+                    "role": "tool",
+                    "content": result,
+                    "tool_call_id": call["id"],
+                    "name": call["name"],
+                })
+
         if clarification is not None:
             yield {"type": "clarification", **clarification}
             return
@@ -248,7 +307,7 @@ async def run_agent_stream(
             sql_tools = [t for t in tools if getattr(t, "name", None) in tool_names]
             bind_tools = list(sql_tools) + [make_clarify_tool(), make_chart_tool()]
             messages = build_messages(history, question=q, skill_instructions=skill_instructions)
-            async for ev in _agent_stream(llm, bind_tools, messages, state=agent_state):
+            async for ev in _agent_stream(llm, bind_tools, messages, max_iters=5, state=agent_state):
                 if ev["type"] == "reasoning":
                     reasoning_parts.append(ev["delta"])
                 elif ev["type"] == "text":
@@ -268,7 +327,7 @@ async def run_agent_stream(
             rec = recent_result_context(history)
             user_content = f"{q}\n\n[已有查询结果]\n{rec}" if rec else q
             messages = build_messages(history, question=user_content, skill_instructions=skill_instructions)
-            async for ev in _agent_stream(llm, [make_chart_tool()], messages, state=agent_state):
+            async for ev in _agent_stream(llm, [make_chart_tool()], messages, max_iters=3, state=agent_state):
                 if ev["type"] == "reasoning":
                     reasoning_parts.append(ev["delta"])
                 elif ev["type"] == "text":
