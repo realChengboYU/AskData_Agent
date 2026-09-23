@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AssistantChat from '@/components/assistant-chat'
-import DataSourceDrawer from '@/components/datasource/DataSourceDrawer'
 import { BookOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import { LANGS, LANG_LABELS, useI18n } from '../i18n'
 import { deleteSession, exportSession, getHistory, getSessions, renameSession } from '../api'
@@ -111,7 +110,6 @@ export default function Chat() {
   const navigate = useNavigate()
   const { t } = useI18n()
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [dsOpen, setDsOpen] = useState(false)
   // 当前会话的历史消息（原始后端结构，交给 AssistantChat 转成 UI）
   const [historyMessages, setHistoryMessages] = useState([])
   // 每次历史重新加载都 +1，用作 AssistantChat 的 key 的一部分：
@@ -324,7 +322,7 @@ export default function Chat() {
               <button type="button" className="side-icon" title="知识库">
                 <BookOutlined />
               </button>
-              <button type="button" className="side-icon" title={t('ds.title')} onClick={() => setDsOpen(true)}>
+              <button type="button" className="side-icon" title={t('ds.title')} onClick={() => navigate('/datasources')}>
                 <DatabaseOutlined />
               </button>
               <button type="button" className="side-icon" title="新建窗口">
@@ -455,8 +453,6 @@ export default function Chat() {
               />
             </main>
           </div>
-
-          <DataSourceDrawer open={dsOpen} onClose={() => setDsOpen(false)} />
         </div>
   )
 }

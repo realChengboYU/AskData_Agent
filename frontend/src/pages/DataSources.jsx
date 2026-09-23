@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   CheckCircleFilled,
   CloseOutlined,
@@ -10,7 +11,7 @@ import {
   PlusOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
-import { useI18n } from '../../i18n'
+import { useI18n } from '../i18n'
 import {
   createDataSource,
   deleteDataSource,
@@ -19,8 +20,15 @@ import {
   testDataSource,
   testDataSourceRaw,
   updateDataSource,
-} from '../../api'
-import './datasource.css'
+} from '../api'
+import '../components/datasource/datasource.css'
+
+// 数据库类型（当前只支持 PostgreSQL，其余为占位，供后续扩展）
+const DB_TYPES = [
+  { id: 'postgresql', name: 'PostgreSQL', available: true, descKey: 'ds.relation' },
+  { id: 'mysql', name: 'MySQL', available: false, descKey: 'ds.relation' },
+  { id: 'sqlite', name: 'SQLite', available: false, descKey: 'ds.embedded' },
+]
 
 // 连接串预览（镜像后端 build_pg_url 的结构，密码打码）
 function connPreview(host, port, dbname, username, hasPassword) {
@@ -34,8 +42,75 @@ function connPreview(host, port, dbname, username, hasPassword) {
 
 const EMPTY = { name: '', host: '', port: 5432, dbname: '', username: '', password: '' }
 
-// 新建 / 编辑表单（抽屉内切换到该视图）
-function DataSourceForm({ editing, onBack, onSaved, onError }) {
+function DatabaseGlyph({ size = 44 }) {
+  return (
+    <svg viewBox="0 0 48 48" width={size} height={size} fill="none" aria-hidden="true">
+      <ellipse cx="24" cy="12" rx="15" ry="6" stroke="currentColor" strokeWidth="2.4" />
+      <path d="M9 12v24c0 3.3 6.7 6 15 6s15-2.7 15-6V12" stroke="currentColor" strokeWidth="2.4" />
+      <path d="M9 24c0 3.3 6.7 6 15 6s15-2.7 15-6" stroke="currentColor" strokeWidth="2.4" opacity="0.55" />
+    </svg>
+  )
+}
+
+// 第 1 步：选择数据库类型
+function TypeSelectStep({ onPick }) {
+  const { t } = useI18n()
+  const [sel, setSel] = useState('postgresql')
+  const selType = DB_TYPES.find((x) => x.id === sel)
+  return (
+    <div className="dsrc-flow">
+      <div className="dsrc-flow-head">
+        <h3 className="dsrc-flow-title">{t('ds.chooseType')}</h3>
+        <p className="dsrc-flow-sub">{t('ds.chooseTypeSub')}</p>
+      </div>
+      <div className="dsrc-types" role="radiogroup" aria-label={t('ds.chooseType')}>
+        {DB_TYPES.map((tp) => {
+          const selected = sel === tp.id
+          return (
+            <button
+              key={tp.id}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={!tp.available}
+              className={`dsrc-type${selected ? ' selected' : ''}`}
+              onClick={() => tp.available && setSel(tp.id)}
+            >
+              <span className={`dsrc-type-glyph${tp.available ? '' : ' soon'}`} aria-hidden="true">
+                <DatabaseGlyph size={30} />
+              </span>
+              <span className="dsrc-type-body">
+                <span className="dsrc-type-name">{tp.name}</span>
+                <span className="dsrc-type-desc">{t(tp.descKey)}</span>
+              </span>
+              <span className={`dsrc-type-status${tp.available ? '' : ' soon'}`}>
+                {tp.available ? t('ds.available') : t('ds.comingSoon')}
+              </span>
+              {selected && tp.available && (
+                <span className="dsrc-type-check" aria-hidden="true">
+                  <CheckCircleFilled />
+                </span>
+              )}
+            </button>
+          )
+        })}
+      </div>
+      <div className="dsrc-flow-actions">
+        <button
+          type="button"
+          className="ds-btn ds-btn-primary"
+          disabled={!selType?.available}
+          onClick={() => onPick(sel)}
+        >
+          {t('ds.continue')}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// 第 2 步：配置连接（新建 / 编辑）
+function DataSourceForm({ editing, onSaved, onError }) {
   const { t } = useI18n()
   const isEdit = !!editing
   const [form, setForm] = useState(() =>
@@ -53,13 +128,12 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
   const [showPwd, setShowPwd] = useState(false)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
-  const [testResult, setTestResult] = useState(null) // {ok, message}
+  const [testResult, setTestResult] = useState(null)
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }))
     if (k !== 'password') setTestResult(null)
   }
-
   const canSave = form.name.trim() && form.host.trim() && form.dbname.trim() && form.username.trim()
 
   async function doTest() {
@@ -75,7 +149,7 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
       })
       setTestResult(r)
     } catch (e) {
-      setTestResult({ ok: false, message: e?.response?.data?.detail || '测试失败' })
+      setTestResult({ ok: false, message: e?.response?.data?.detail || t('ds.testFail') })
     } finally {
       setTesting(false)
     }
@@ -84,7 +158,6 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
   async function save() {
     if (!canSave || saving) return
     setSaving(true)
-    onError?.('')
     try {
       const payload = {
         name: form.name.trim(),
@@ -103,19 +176,18 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
         onSaved(r?.id)
       }
     } catch (e) {
-      onError?.(e?.response?.data?.detail || '保存失败')
+      onError?.(e?.response?.data?.detail || t('ds.saveFail'))
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="ds-form">
-      <div className="ds-form-head">
-        <button type="button" className="ds-back" onClick={onBack}>
-          ← {t('ds.backTo')}
-        </button>
-        <h3 className="ds-form-title">{isEdit ? t('ds.edit') : t('ds.new')}</h3>
+    <div className="dsrc-flow">
+      <div className="dsrc-flow-head">
+        <h3 className="dsrc-flow-title">
+          {t('ds.configure')} <span className="dsrc-flow-badge">PostgreSQL</span>
+        </h3>
       </div>
 
       <div className="ds-field">
@@ -201,12 +273,10 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
             {showPwd ? <EyeInvisibleOutlined /> : <EyeOutlined />}
           </button>
         </div>
-        {isEdit && !form.password && (
-          <span className="ds-hint">{t('ds.passwordKeepHint')}</span>
-        )}
+        {isEdit && !form.password && <span className="ds-hint">{t('ds.passwordKeepHint')}</span>}
       </div>
 
-      {/* 连接串预览——随输入实时拼出（密码打码） */}
+      {/* 连接串预览——随输入实时拼出（密码打码），本页唯一的重元素 */}
       <div className="ds-conn" aria-live="polite">
         <div className="ds-conn-label">{t('ds.connString')}</div>
         <code className="ds-conn-code">{connPreview(form.host, form.port, form.dbname, form.username, !!form.password)}</code>
@@ -229,12 +299,7 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
           {testing ? <LoadingOutlined spin /> : <ThunderboltOutlined />}
           {t('ds.test')}
         </button>
-        <button
-          type="button"
-          className="ds-btn ds-btn-primary"
-          disabled={!canSave || saving}
-          onClick={save}
-        >
+        <button type="button" className="ds-btn ds-btn-primary" disabled={!canSave || saving} onClick={save}>
           {saving ? <LoadingOutlined spin /> : null}
           {t('ds.save')}
         </button>
@@ -243,12 +308,12 @@ function DataSourceForm({ editing, onBack, onSaved, onError }) {
   )
 }
 
-// 数据源列表（抽屉默认视图）
+// 数据源列表
 function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSetActive, onTest, onRemove }) {
   const { t } = useI18n()
   if (!loading && sources.length === 0) {
     return (
-      <div className="ds-empty">
+      <div className="ds-empty dsrc-empty">
         <div className="ds-empty-mark" aria-hidden="true">
           <DatabaseGlyph />
         </div>
@@ -268,7 +333,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
           <PlusOutlined /> {t('ds.new')}
         </button>
       </div>
-      <div className="ds-list">
+      <div className="ds-list dsrc-list">
         {sources.map((s) => {
           const active = s.id === activeId
           return (
@@ -309,12 +374,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
                   <button type="button" className="ds-act" onClick={() => onEdit(s)} title={t('ds.edit')}>
                     <EditOutlined />
                   </button>
-                  <button
-                    type="button"
-                    className="ds-act ds-act-del"
-                    onClick={() => onRemove(s)}
-                    title={t('ds.delete')}
-                  >
+                  <button type="button" className="ds-act ds-act-del" onClick={() => onRemove(s)} title={t('ds.delete')}>
                     <DeleteOutlined />
                   </button>
                 </span>
@@ -327,22 +387,13 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
   )
 }
 
-// 一个小的数据库图形（列表空态用）
-function DatabaseGlyph() {
-  return (
-    <svg viewBox="0 0 48 48" width="44" height="44" fill="none" aria-hidden="true">
-      <ellipse cx="24" cy="12" rx="15" ry="6" stroke="currentColor" strokeWidth="2.4" />
-      <path d="M9 12v24c0 3.3 6.7 6 15 6s15-2.7 15-6V12" stroke="currentColor" strokeWidth="2.4" />
-      <path d="M9 24c0 3.3 6.7 6 15 6s15-2.7 15-6" stroke="currentColor" strokeWidth="2.4" opacity="0.55" />
-    </svg>
-  )
-}
-
-export default function DataSourceDrawer({ open, onClose }) {
+export default function DataSources() {
+  const navigate = useNavigate()
   const { t } = useI18n()
   const [sources, setSources] = useState([])
   const [loading, setLoading] = useState(false)
-  const [view, setView] = useState('list') // 'list' | 'form'
+  const [view, setView] = useState('list') // 'list' | 'new' | 'edit'
+  const [newStep, setNewStep] = useState('type') // 'type' | 'form'
   const [editing, setEditing] = useState(null)
   const [busy, setBusy] = useState('')
   const [testMsg, setTestMsg] = useState('')
@@ -363,40 +414,45 @@ export default function DataSourceDrawer({ open, onClose }) {
   }, [])
 
   useEffect(() => {
-    if (open) {
-      setView('list')
-      load()
-    }
-  }, [open, load])
+    load()
+  }, [load])
 
-  // ESC 关闭
+  // ESC：表单/类型步回退一级，列表则回到对话
   useEffect(() => {
-    if (!open) return
-    const onKey = (e) => e.key === 'Escape' && onClose()
+    const onKey = (e) => e.key === 'Escape' && goBack()
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, newStep])
+
+  const goBack = () => {
+    if (view === 'edit') return setView('list')
+    if (view === 'new' && newStep === 'form') return setNewStep('type')
+    if (view === 'new' && newStep === 'type') return setView('list')
+    navigate('/chat')
+  }
+
+  const title =
+    view === 'edit' ? t('ds.edit') : view === 'new' ? t('ds.new') : t('ds.title')
 
   const openNew = () => {
     setEditing(null)
+    setNewStep('type')
     setTestMsg('')
-    setView('form')
+    setView('new')
   }
   const openEdit = (s) => {
     setEditing(s)
     setTestMsg('')
-    setView('form')
+    setView('edit')
   }
 
   const handleSaved = (newId) => {
-    // 首次创建（此前无任何「使用中」数据源）时自动激活，省去一步
     const shouldAutoActivate = !!newId && !hadActiveRef.current
     setView('list')
     setEditing(null)
     load()
-    if (shouldAutoActivate) {
-      setDataSourceActive(newId).catch(() => {})
-    }
+    if (shouldAutoActivate) setDataSourceActive(newId).catch(() => {})
   }
 
   const remove = (s) => {
@@ -421,8 +477,7 @@ export default function DataSourceDrawer({ open, onClose }) {
     testDataSource(id)
       .then((r) => {
         const src = sources.find((x) => x.id === id)
-        setTestMsg(r.ok ? `${src?.name}: ${r.message}` : `${src?.name}: ${r.message}`)
-        // 成功/失败都短暂提示后清除
+        setTestMsg(`${src?.name}: ${r.message}`)
         setTimeout(() => setTestMsg(''), 4000)
       })
       .catch(() => {})
@@ -430,27 +485,23 @@ export default function DataSourceDrawer({ open, onClose }) {
   }
 
   return (
-    <>
-      <div className={`ds-overlay${open ? ' open' : ''}`} onClick={onClose} aria-hidden="true" />
-      <aside className={`ds-drawer${open ? ' open' : ''}`} aria-hidden={!open} role="dialog" aria-label={t('ds.title')}>
-        <header className="ds-drawer-head">
-          <div className="ds-drawer-title">
-            <h2>{t('ds.title')}</h2>
-            <span className="ds-pg-badge">
-              <DatabaseGlyph /> PostgreSQL
-            </span>
-          </div>
-          <button type="button" className="ds-close" onClick={onClose} aria-label={t('ds.close')}>
-            <CloseOutlined />
-          </button>
-        </header>
+    <div className="dsrc-page">
+      <header className="dsrc-topbar">
+        <button type="button" className="dsrc-back" onClick={goBack}>
+          ← {view === 'list' ? t('ds.backChat') : t('ds.backTo')}
+        </button>
+        <span className="dsrc-topbar-title">{title}</span>
+        <span className="dsrc-topbar-badge">
+          <DatabaseGlyph size={15} /> PostgreSQL
+        </span>
+      </header>
 
-        <p className="ds-drawer-sub">{t('ds.sub')}</p>
-
+      <div className="dsrc-container">
         {testMsg && <div className="ds-bannertest">{testMsg}</div>}
 
-        <div className="ds-drawer-body">
-          {view === 'list' ? (
+        {view === 'list' && (
+          <>
+            <p className="dsrc-sub">{t('ds.sub')}</p>
             <DataSourceList
               sources={sources}
               activeId={activeId}
@@ -462,20 +513,25 @@ export default function DataSourceDrawer({ open, onClose }) {
               onTest={doTest}
               onRemove={remove}
             />
-          ) : (
-            <DataSourceForm
-              editing={editing}
-              onBack={() => setView('list')}
-              onSaved={handleSaved}
-              onError={(m) => {
-                if (!m) return
-                setTestMsg(m)
-                setTimeout(() => setTestMsg(''), 4000)
-              }}
-            />
-          )}
-        </div>
-      </aside>
-    </>
+          </>
+        )}
+
+        {view === 'new' && newStep === 'type' && (
+          <TypeSelectStep onPick={() => setNewStep('form')} />
+        )}
+
+        {(view === 'new' && newStep === 'form') || view === 'edit' ? (
+          <DataSourceForm
+            editing={view === 'edit' ? editing : null}
+            onSaved={handleSaved}
+            onError={(m) => {
+              if (!m) return
+              setTestMsg(m)
+              setTimeout(() => setTestMsg(''), 4000)
+            }}
+          />
+        ) : null}
+      </div>
+    </div>
   )
 }

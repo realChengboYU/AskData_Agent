@@ -1,119 +1,91 @@
-/* 数据源管理抽屉——沿用 DeepData 蓝色系，行式列表 + 激活左竖线，
-   唯一的"重"元素是表单里的连接串预览块（navy 底 / 等宽 / 密码打码）。 */
+/* 数据源管理（独立页面 /datasources）——沿用 DeepData 蓝色系。
+   布局：白顶栏(back + 标题 + PG 徽标) + 居中左对齐内容栏(最大 760px)。
+   唯一的"重"元素仍是表单里的连接串预览块（navy 底 / 等宽 / 密码打码）。 */
 
-/* ---- 遮罩 + 抽屉 ---- */
-.ds-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 900;
-  background: rgba(15, 23, 42, 0.28);
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity 0.28s ease, visibility 0.28s ease;
-}
-.ds-overlay.open {
-  opacity: 1;
-  visibility: visible;
-}
-
-.ds-drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100vh;
-  width: 480px;
-  max-width: 92vw;
-  z-index: 901;
+/* ---- 页面外壳 ---- */
+.dsrc-page {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border-left: 1px solid #dbeafe;
-  box-shadow: -18px 0 48px rgba(30, 58, 138, 0.16);
-  transform: translateX(100%);
-  visibility: hidden;
-  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.32s;
-}
-.ds-drawer.open {
-  transform: translateX(0);
-  visibility: visible;
+  background: #eff6ff;
 }
 
-.ds-drawer-head {
+.dsrc-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 18px 20px 10px;
+  gap: 14px;
+  height: 56px;
+  flex: none;
+  padding: 0 20px;
+  background: #ffffff;
+  border-bottom: 1px solid #dbeafe;
 }
-.ds-drawer-title {
-  display: flex;
+.dsrc-back {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: background 0.15s ease;
 }
-.ds-drawer-title h2 {
-  margin: 0;
+.dsrc-back:hover {
+  background: #eef4ff;
+}
+.dsrc-back:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.dsrc-topbar-title {
   font-family: 'Geist Variable', system-ui, sans-serif;
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #1e3a8a;
 }
-.ds-pg-badge {
+.dsrc-topbar-badge {
+  margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 9px 3px 7px;
+  gap: 6px;
+  padding: 4px 10px;
   border-radius: 999px;
   background: #eff6ff;
   border: 1px solid #dbeafe;
   color: #1e3a8a;
-  font-size: 11px;
+  font-size: 11.5px;
   font-weight: 600;
 }
-.ds-pg-badge svg {
+.dsrc-topbar-badge svg {
+  width: 15px;
+  height: 15px;
   color: #2563eb;
-  width: 14px;
-  height: 14px;
-}
-.ds-close {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 15px;
-  cursor: pointer;
-  transition: all 0.16s ease;
-}
-.ds-close:hover {
-  background: #eef4ff;
-  color: #1e3a8a;
-}
-.ds-close:focus-visible,
-.ds-btn:focus-visible,
-.ds-back:focus-visible,
-.ds-act:focus-visible,
-.ds-act-use:focus-visible,
-.ds-input:focus-visible,
-.ds-item-main:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
 }
 
-.ds-drawer-sub {
-  margin: 0;
-  padding: 0 20px 12px;
+.dsrc-container {
+  flex: 1;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 26px 24px 48px;
+}
+.dsrc-sub {
+  margin: 0 0 16px;
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.55;
   color: #64748b;
 }
 .ds-bannertest {
-  margin: 0 20px 4px;
-  padding: 8px 12px;
+  margin: 0 0 14px;
+  padding: 9px 12px;
   border-radius: 9px;
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
@@ -121,22 +93,16 @@
   font-size: 12.5px;
   line-height: 1.5;
 }
-.ds-drawer-body {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 4px 20px 24px;
-}
 
 /* ---- 列表 ---- */
 .ds-listwrap {
-  padding-top: 4px;
+  padding-top: 2px;
 }
 .ds-list-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 2px 10px;
+  padding: 4px 2px 10px;
 }
 .ds-list-count {
   font-size: 12.5px;
@@ -152,15 +118,18 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 11px 8px 11px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  padding: 12px 10px 12px 14px;
+  border-bottom: 1px solid #e2ecfb;
+}
+.ds-item:last-child {
+  border-bottom: none;
 }
 .ds-item::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 8px;
-  bottom: 8px;
+  top: 10px;
+  bottom: 10px;
   width: 3px;
   border-radius: 999px;
   background: transparent;
@@ -175,7 +144,7 @@
 .ds-item-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   flex: 1;
   min-width: 0;
   padding: 0;
@@ -184,6 +153,10 @@
   text-align: left;
   cursor: pointer;
   border-radius: 8px;
+}
+.ds-item-main:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 .ds-item-dot {
   flex: none;
@@ -225,7 +198,6 @@
   flex: none;
 }
 .ds-active-tag {
-  font-style: normal;
   padding: 3px 9px;
   border-radius: 999px;
   background: #2563eb;
@@ -249,6 +221,10 @@
 .ds-act-use:hover:not(:disabled) {
   background: #eef4ff;
 }
+.ds-act-use:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
 .ds-act-use:disabled {
   opacity: 0.5;
   cursor: default;
@@ -268,8 +244,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 27px;
+  height: 27px;
   border: none;
   border-radius: 7px;
   background: transparent;
@@ -281,6 +257,10 @@
 .ds-act:hover:not(:disabled) {
   background: #eef4ff;
   color: #2563eb;
+}
+.ds-act:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 .ds-act:disabled {
   opacity: 0.5;
@@ -298,11 +278,11 @@
   align-items: center;
   text-align: center;
   gap: 6px;
-  padding: 56px 24px 40px;
+  padding: 64px 24px 40px;
 }
 .ds-empty-mark {
   color: #bfdbfe;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .ds-empty-title {
   margin: 0;
@@ -311,60 +291,181 @@
   color: #1e3a8a;
 }
 .ds-empty-sub {
-  margin: 0 0 16px;
+  margin: 0 0 18px;
   font-size: 13px;
   line-height: 1.6;
   color: #64748b;
-  max-width: 260px;
+  max-width: 280px;
 }
 
-/* ---- 表单 ---- */
-.ds-form {
+/* ---- 流程（选择类型 / 配置连接）---- */
+.dsrc-flow {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding-top: 4px;
+  gap: 16px;
 }
-.ds-form-head {
+.dsrc-flow-head {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.dsrc-flow-title {
+  margin: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.ds-back {
-  border: none;
-  background: transparent;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 8px 4px 4px;
-  border-radius: 7px;
-}
-.ds-back:hover {
-  background: #eef4ff;
-  color: #2563eb;
-}
-.ds-form-title {
-  margin: 0;
-  font-size: 15px;
+  gap: 10px;
+  font-size: 18px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: #1e3a8a;
 }
-.ds-row2 {
+.dsrc-flow-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 600;
+}
+.dsrc-flow-sub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #64748b;
+}
+.dsrc-flow-actions {
   display: flex;
+  justify-content: flex-end;
+  padding-top: 2px;
+}
+
+/* 数据库类型选择（第 1 步） */
+.dsrc-types {
+  display: flex;
+  flex-direction: column;
   gap: 10px;
 }
+.dsrc-type {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
+}
+.dsrc-type::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: transparent;
+}
+.dsrc-type.selected {
+  border-color: #2563eb;
+  background: #f5f9ff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.dsrc-type.selected::before {
+  background: #2563eb;
+}
+.dsrc-type:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.dsrc-type:disabled {
+  cursor: not-allowed;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  opacity: 0.72;
+}
+.dsrc-type-glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 11px;
+  background: #eff6ff;
+  color: #2563eb;
+}
+.dsrc-type-glyph.soon {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.dsrc-type-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.dsrc-type-name {
+  font-size: 14.5px;
+  font-weight: 650;
+  color: #1e3a8a;
+}
+.dsrc-type-desc {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.dsrc-type-status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.dsrc-type-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.dsrc-type-status.soon {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+}
+.dsrc-type-check {
+  display: inline-flex;
+  color: #2563eb;
+  font-size: 16px;
+  flex: none;
+}
+
+/* ---- 表单字段 ---- */
 .ds-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+.ds-row2 {
+  display: flex;
+  gap: 12px;
 }
 .ds-field-grow {
   flex: 1;
   min-width: 0;
 }
 .ds-field-port {
-  width: 92px;
+  width: 96px;
   flex: none;
 }
 .ds-field label {
@@ -374,10 +475,10 @@
 }
 .ds-input {
   width: 100%;
-  height: 40px;
+  height: 42px;
   padding: 0 12px;
   border: 1px solid #dbeafe;
-  border-radius: 9px;
+  border-radius: 10px;
   background: #fff;
   color: #1e3a8a;
   font-size: 14px;
@@ -391,6 +492,9 @@
   border-color: #2563eb;
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
 }
+.ds-input:focus-visible {
+  outline: none;
+}
 .ds-input-mono {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 13px;
@@ -399,7 +503,7 @@
   position: relative;
 }
 .ds-pwd-wrap .ds-input {
-  padding-right: 40px;
+  padding-right: 42px;
 }
 .ds-pwd-toggle {
   position: absolute;
@@ -409,8 +513,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border: none;
   border-radius: 7px;
   background: transparent;
@@ -422,24 +526,28 @@
   background: #eef4ff;
   color: #2563eb;
 }
+.ds-pwd-toggle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
 .ds-hint {
   font-size: 11.5px;
   color: #94a3b8;
 }
 
-/* ---- 连接串预览（唯一的重元素）---- */
+/* 连接串预览——本页唯一的重元素 */
 .ds-conn {
-  border-radius: 11px;
+  border-radius: 12px;
   background: linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%);
-  padding: 12px 15px 14px;
-  box-shadow: 0 8px 22px rgba(30, 58, 138, 0.28);
+  padding: 13px 16px 15px;
+  box-shadow: 0 10px 26px rgba(30, 58, 138, 0.28);
 }
 .ds-conn-label {
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
   color: #93c5fd;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 .ds-conn-code {
   display: block;
@@ -451,15 +559,15 @@
   white-space: pre-wrap;
 }
 
-/* ---- 测试结果 ---- */
+/* 测试结果 */
 .ds-test {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
-  border-radius: 9px;
+  padding: 10px 12px;
+  border-radius: 10px;
   font-size: 12.5px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 .ds-test .anticon {
   font-size: 14px;
@@ -487,10 +595,10 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 38px;
-  padding: 0 16px;
+  height: 40px;
+  padding: 0 18px;
   border: none;
-  border-radius: 9px;
+  border-radius: 10px;
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
@@ -502,6 +610,10 @@
 .ds-btn:disabled {
   opacity: 0.5;
   cursor: default;
+}
+.ds-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 .ds-btn-primary {
   background: #2563eb;
@@ -524,11 +636,4 @@
   padding: 0 12px;
   font-size: 12.5px;
   border-radius: 8px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ds-drawer,
-  .ds-overlay {
-    transition: none;
-  }
 }
