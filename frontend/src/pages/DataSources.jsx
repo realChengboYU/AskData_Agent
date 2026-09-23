@@ -18,6 +18,7 @@ import {
   getDataSources,
   introspectFields,
   introspectPreview,
+  introspectSchemasRaw,
   introspectTables,
   saveCuratedTables,
   setDataSourceActive,
@@ -35,16 +36,20 @@ const DB_TYPES = [
 ]
 
 // 连接串预览（镜像后端 build_pg_url 的结构，密码打码）
-function connPreview(host, port, dbname, username, hasPassword) {
+function connPreview(host, port, dbname, username, hasPassword, hasSsl) {
   const h = host || '主机'
   const p = port || '5432'
   const db = dbname || '数据库'
   const u = username || '用户名'
   const pw = hasPassword ? '••••••••' : '······'
-  return `postgresql+psycopg://${u}:${pw}@${h}:${p}/${db}`
+  const ssl = hasSsl ? '?sslmode=require' : ''
+  return `postgresql+psycopg://${u}:${pw}@${h}:${p}/${db}${ssl}`
 }
 
-const EMPTY = { name: '', host: '', port: 5432, dbname: '', username: '', password: '', description: '' }
+const EMPTY = {
+  name: '', host: '', port: 5432, dbname: '', username: '', password: '', description: '',
+  schema: 'public', timeout: 6, pool_size: 5, ssl: false,
+}
 
 function DatabaseGlyph({ size = 44 }) {
   return (
@@ -128,6 +133,10 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
           username: editing.username || '',
           password: '',
           description: editing.description || '',
+          schema: editing.schema || 'public',
+          timeout: editing.timeout || 6,
+          pool_size: editing.pool_size || 5,
+          ssl: !!editing.ssl,
         }
       : EMPTY,
   )
@@ -135,6 +144,31 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState(null)
+  const [showAdv, setShowAdv] = useState(isEdit) // 高级选项：新建默认收起
+  const [schemaList, setSchemaList] = useState([])
+  const [fetchingSchema, setFetchingSchema] = useState(false)
+
+  // 「获取 Schema」：按当前连接信息列出库内 schema
+  async function fetchSchemas() {
+    if (fetchingSchema) return
+    setFetchingSchema(true)
+    try {
+      const r = await introspectSchemasRaw({
+        host: form.host.trim(),
+        port: Number(form.port) || 5432,
+        dbname: form.dbname.trim(),
+        username: form.username.trim(),
+        password: form.password,
+        ssl: form.ssl,
+      })
+      setSchemaList(r?.schemas ?? [])
+    } catch (e) {
+      setSchemaList([])
+      onError?.(e?.response?.data?.detail || t('ds.tablesReadFail'))
+    } finally {
+      setFetchingSchema(false)
+    }
+  }
 
   const set = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }))
@@ -142,17 +176,21 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
   }
   const canSave = form.name.trim() && form.host.trim() && form.dbname.trim() && form.username.trim()
 
+  const rawConn = () => ({
+    host: form.host.trim(),
+    port: Number(form.port) || 5432,
+    dbname: form.dbname.trim(),
+    username: form.username.trim(),
+    password: form.password,
+    schema: form.schema.trim() || 'public',
+    ssl: !!form.ssl,
+  })
+
   async function doTest() {
     setTesting(true)
     setTestResult(null)
     try {
-      const r = await testDataSourceRaw({
-        host: form.host.trim(),
-        port: Number(form.port) || 5432,
-        dbname: form.dbname.trim(),
-        username: form.username.trim(),
-        password: form.password,
-      })
+      const r = await testDataSourceRaw(rawConn())
       setTestResult(r)
     } catch (e) {
       setTestResult({ ok: false, message: e?.response?.data?.detail || t('ds.testFail') })
@@ -167,13 +205,7 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
     setSaving(true)
     setTestResult(null)
     try {
-      const tr = await testDataSourceRaw({
-        host: form.host.trim(),
-        port: Number(form.port) || 5432,
-        dbname: form.dbname.trim(),
-        username: form.username.trim(),
-        password: form.password,
-      })
+      const tr = await testDataSourceRaw(rawConn())
       if (!tr?.ok) {
         setTestResult(tr || { ok: false, message: t('ds.testFail') })
         return
@@ -185,6 +217,10 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
         dbname: form.dbname.trim(),
         username: form.username.trim(),
         description: form.description || '',
+        schema: form.schema.trim() || 'public',
+        timeout: Number(form.timeout) || 6,
+        pool_size: Number(form.pool_size) || 5,
+        ssl: !!form.ssl,
       }
       if (targetId) {
         if (form.password) payload.password = form.password
@@ -262,6 +298,44 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
       </div>
 
       <div className="ds-field">
+        <label htmlFor="ds-schema">{t('ds.schema')}</label>
+        <div className="ds-schema-row">
+          <input
+            id="ds-schema"
+            className="ds-input ds-input-mono"
+            value={form.schema}
+            placeholder="public"
+            autoComplete="off"
+            onChange={(e) => set('schema', e.target.value)}
+          />
+          <button
+            type="button"
+            className="ds-btn ds-btn-ghost ds-btn-sm"
+            disabled={fetchingSchema || !form.host.trim() || !form.dbname.trim() || !form.username.trim()}
+            onClick={fetchSchemas}
+          >
+            {fetchingSchema ? <LoadingOutlined spin /> : <ThunderboltOutlined />}
+            {fetchingSchema ? t('ds.fetching') : t('ds.fetchSchemas')}
+          </button>
+        </div>
+        {schemaList.length > 0 && (
+          <div className="ds-schema-chips">
+            {schemaList.map((s) => (
+              <button
+                key={s}
+                type="button"
+                className={`ds-schema-chip${s === form.schema ? ' on' : ''}`}
+                onClick={() => set('schema', s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+        <span className="ds-hint">{t('ds.schemaHint')}</span>
+      </div>
+
+      <div className="ds-field">
         <label htmlFor="ds-user">{t('ds.username')}</label>
         <input
           id="ds-user"
@@ -300,7 +374,52 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
       {/* 连接串预览——随输入实时拼出（密码打码），本页唯一的重元素 */}
       <div className="ds-conn" aria-live="polite">
         <div className="ds-conn-label">{t('ds.connString')}</div>
-        <code className="ds-conn-code">{connPreview(form.host, form.port, form.dbname, form.username, !!form.password)}</code>
+        <code className="ds-conn-code">{connPreview(form.host, form.port, form.dbname, form.username, !!form.password, !!form.ssl)}</code>
+      </div>
+
+      {/* 高级选项：超时 / 连接池 / SSL（新建默认收起）*/}
+      <div className="ds-adv">
+        <button type="button" className="ds-adv-toggle" onClick={() => setShowAdv((s) => !s)}>
+          <span aria-hidden="true">{showAdv ? '▾' : '▸'}</span> {t('ds.advanced')}
+        </button>
+        {showAdv && (
+          <div className="ds-adv-body">
+            <div className="ds-row2">
+              <div className="ds-field ds-field-grow">
+                <label htmlFor="ds-timeout">{t('ds.timeout')}</label>
+                <input
+                  id="ds-timeout"
+                  className="ds-input"
+                  type="number"
+                  min="1"
+                  max="300"
+                  value={form.timeout}
+                  onChange={(e) => set('timeout', e.target.value)}
+                />
+              </div>
+              <div className="ds-field ds-field-grow">
+                <label htmlFor="ds-pool">{t('ds.poolSize')}</label>
+                <input
+                  id="ds-pool"
+                  className="ds-input"
+                  type="number"
+                  min="1"
+                  max="500"
+                  value={form.pool_size}
+                  onChange={(e) => set('pool_size', e.target.value)}
+                />
+              </div>
+            </div>
+            <label className="ds-adv-ssl">
+              <input
+                type="checkbox"
+                checked={!!form.ssl}
+                onChange={(e) => set('ssl', e.target.checked)}
+              />
+              {t('ds.ssl')}
+            </label>
+          </div>
+        )}
       </div>
 
       {testResult && (

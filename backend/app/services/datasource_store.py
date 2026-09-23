@@ -21,7 +21,8 @@ _TABLE = "data_sources"
 
 _SELECT_COLS = (
     "id, user_key, name, host, port, dbname, username, password, "
-    "is_active, description, num, created_at, updated_at"
+    "is_active, description, num, db_schema, timeout, pool_size, ssl, "
+    "created_at, updated_at"
 )
 
 
@@ -49,6 +50,18 @@ def _ensure_table() -> None:
             # 旧库升级：增量补列（IF NOT EXISTS 幂等）
             cur.execute(f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS description text")
             cur.execute(f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS num integer NOT NULL DEFAULT 0")
+            cur.execute(
+                f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS db_schema text NOT NULL DEFAULT 'public'"
+            )
+            cur.execute(
+                f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS timeout integer NOT NULL DEFAULT 6"
+            )
+            cur.execute(
+                f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS pool_size integer NOT NULL DEFAULT 5"
+            )
+            cur.execute(
+                f"ALTER TABLE {_TABLE} ADD COLUMN IF NOT EXISTS ssl boolean NOT NULL DEFAULT false"
+            )
             # 策展表：某数据源下被选中/可编辑的表 + 表注释 + 自定义注释
             cur.execute(
                 """
@@ -76,17 +89,22 @@ def build_pg_url(
     dbname: str,
     username: str,
     password: str,
+    ssl: bool = False,
 ) -> str:
-    """把分开录入的字段拼成 PG 连接串（用户名/密码做 URL 转义）。"""
+    """把分开录入的字段拼成 PG 连接串（用户名/密码做 URL 转义；ssl 时加 sslmode）。"""
     u = quote(str(username or ""), safe="")
     p = quote(str(password or ""), safe="")
-    return f"postgresql+psycopg://{u}:{p}@{host}:{int(port)}/{dbname}"
+    url = f"postgresql+psycopg://{u}:{p}@{host}:{int(port)}/{dbname}"
+    if ssl:
+        url += "?sslmode=require"
+    return url
 
 
 def _row_to_public(row: tuple, include_password: bool = False) -> dict:
     (
         _id, _user, name, host, port, dbname, username, password,
-        is_active, description, num, created_at, updated_at,
+        is_active, description, num, db_schema, timeout, pool_size, ssl,
+        created_at, updated_at,
     ) = row
     d: dict[str, Any] = {
         "id": _id,
@@ -98,6 +116,10 @@ def _row_to_public(row: tuple, include_password: bool = False) -> dict:
         "is_active": bool(is_active),
         "description": description or "",
         "num": num or 0,
+        "schema": db_schema or "public",
+        "timeout": timeout or 6,
+        "pool_size": pool_size or 5,
+        "ssl": bool(ssl),
         "created_at": created_at.isoformat() if created_at else None,
         "updated_at": updated_at.isoformat() if updated_at else None,
     }
@@ -140,6 +162,10 @@ def create_source(
     username: str,
     password: str,
     description: str = "",
+    schema: str = "public",
+    timeout: int = 6,
+    pool_size: int = 5,
+    ssl: bool = False,
 ) -> str:
     _ensure_table()
     sid = uuid.uuid4().hex
@@ -147,10 +173,12 @@ def create_source(
         with conn.cursor() as cur:
             cur.execute(
                 f"INSERT INTO {_TABLE} "
-                "(id, user_key, name, host, port, dbname, username, password, description) "
-                "VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "(id, user_key, name, host, port, dbname, username, password, "
+                "description, db_schema, timeout, pool_size, ssl) "
+                "VALUES(%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 [sid, user_key, name, host, int(port), dbname, username,
-                 encrypt(password), description or ""],
+                 encrypt(password), description or "", schema or "public",
+                 int(timeout or 6), int(pool_size or 5), bool(ssl)],
             )
     return sid
 
@@ -158,7 +186,10 @@ def create_source(
 def update_source(source_id: str, user_key: str, fields: dict) -> bool:
     """按提供的字段更新（只更新非 None 的字段）。返回是否更新到行。"""
     _ensure_table()
-    allowed = {"name", "host", "port", "dbname", "username", "password", "description"}
+    allowed = {
+        "name", "host", "port", "dbname", "username", "password", "description",
+        "db_schema", "timeout", "pool_size", "ssl",
+    }
     sets: list[str] = []
     vals: list[Any] = []
     for k, v in fields.items():
@@ -166,7 +197,7 @@ def update_source(source_id: str, user_key: str, fields: dict) -> bool:
             sets.append(f"{k}=%s")
             if k == "password":
                 vals.append(encrypt(v))
-            elif k == "port":
+            elif k in ("port", "timeout", "pool_size"):
                 vals.append(int(v))
             else:
                 vals.append(v)
@@ -224,15 +255,15 @@ def get_active_db_url(user_key: str) -> Optional[str]:
     with get_pool().connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
-                f"SELECT host, port, dbname, username, password FROM {_TABLE} "
+                f"SELECT host, port, dbname, username, password, ssl FROM {_TABLE} "
                 "WHERE user_key=%s AND is_active=true LIMIT 1",
                 [user_key],
             )
             row = cur.fetchone()
     if not row:
         return None
-    host, port, dbname, username, password = row
-    return build_pg_url(host, port, dbname, username, decrypt(password))
+    host, port, dbname, username, password, ssl = row
+    return build_pg_url(host, port, dbname, username, decrypt(password), ssl=bool(ssl))
 
 
 def test_connection(
@@ -242,9 +273,11 @@ def test_connection(
     username: str,
     password: str,
     timeout: int = 6,
+    schema: str = "public",
+    ssl: bool = False,
 ) -> tuple[bool, str]:
     """用给定凭据连接目标 PG，成功则返回 (True, 概要)，失败返回 (False, 原因)。"""
-    url = build_pg_url(host, port, dbname, username, password)
+    url = build_pg_url(host, port, dbname, username, password, ssl=ssl)
     engine = None
     try:
         from sqlalchemy import create_engine, text
@@ -256,12 +289,13 @@ def test_connection(
                 n = conn.execute(
                     text(
                         "SELECT count(*) FROM information_schema.tables "
-                        "WHERE table_schema='public'"
-                    )
+                        "WHERE table_schema=:s"
+                    ),
+                    {"s": schema or "public"},
                 ).scalar()
             except Exception:
                 n = "?"
-        return True, f"连接成功 · public 下 {n} 张表"
+        return True, f"连接成功 · {schema or 'public'} 下 {n} 张表"
     except Exception as exc:  # 连接失败（网络/认证/库不存在等）
         msg = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
         return False, f"连接失败：{msg[:160]}"
@@ -382,10 +416,12 @@ def delete_tables(ds_id: str) -> int:
 # 目标库内省：连到用户配置的业务库，读元数据（表 / 字段 / 预览）
 # ---------------------------------------------------------------------------
 
-def _target_engine(host: str, port: int, dbname: str, username: str, password: str):
+def _target_engine(
+    host: str, port: int, dbname: str, username: str, password: str, ssl: bool = False
+):
     from sqlalchemy import create_engine
 
-    url = build_pg_url(host, port, dbname, username, password)
+    url = build_pg_url(host, port, dbname, username, password, ssl=ssl)
     return create_engine(url, connect_args={"connect_timeout": 8})
 
 
@@ -396,15 +432,48 @@ def _coerce(value: Any) -> Any:
     return str(value)
 
 
-def list_target_tables(
-    host: str, port: int, dbname: str, username: str, password: str, limit: int = 1000
-) -> list[dict]:
-    """列出目标库 public 下的表（表名 + 表注释），返回 [{table_name, table_comment}]。"""
+def list_target_schemas(
+    host: str, port: int, dbname: str, username: str, password: str, ssl: bool = False
+) -> list[str]:
+    """列出目标库的可用 schema（排除系统 schema），返回 [nspname, ...]。"""
     engine = None
     try:
         from sqlalchemy import text
 
-        engine = _target_engine(host, port, dbname, username, password)
+        engine = _target_engine(host, port, dbname, username, password, ssl=ssl)
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT nspname FROM pg_namespace "
+                    "WHERE nspname !~ '^pg_' AND nspname <> 'information_schema' "
+                    "AND nspname <> 'toast' ORDER BY nspname"
+                )
+            ).fetchall()
+        return [r[0] for r in rows]
+    finally:
+        if engine is not None:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
+
+
+def list_target_tables(
+    host: str,
+    port: int,
+    dbname: str,
+    username: str,
+    password: str,
+    limit: int = 1000,
+    schema: str = "public",
+    ssl: bool = False,
+) -> list[dict]:
+    """列出目标库某 schema 下的表（表名 + 表注释），返回 [{table_name, table_comment}]。"""
+    engine = None
+    try:
+        from sqlalchemy import text
+
+        engine = _target_engine(host, port, dbname, username, password, ssl=ssl)
         with engine.connect() as conn:
             rows = conn.execute(
                 text(
@@ -412,9 +481,10 @@ def list_target_tables(
                     "FROM pg_class c "
                     "JOIN pg_namespace n ON n.oid = c.relnamespace "
                     "LEFT JOIN pg_description d ON d.objoid = c.oid AND d.objsubid = 0 "
-                    "WHERE n.nspname = 'public' AND c.relkind IN ('r','v','m') "
+                    "WHERE n.nspname = :s AND c.relkind IN ('r','v','m') "
                     "ORDER BY c.relname LIMIT " + str(max(1, min(int(limit), 2000)))
-                )
+                ),
+                {"s": schema or "public"},
             ).fetchall()
         return [{"table_name": r[0], "table_comment": r[1] or ""} for r in rows]
     finally:
@@ -426,23 +496,30 @@ def list_target_tables(
 
 
 def list_target_fields(
-    host: str, port: int, dbname: str, username: str, password: str, table_name: str
+    host: str,
+    port: int,
+    dbname: str,
+    username: str,
+    password: str,
+    table_name: str,
+    schema: str = "public",
+    ssl: bool = False,
 ) -> list[dict]:
-    """列出某表的字段（字段名 + 类型），返回 [{field_name, field_type}]。"""
+    """列出某表（在给定 schema 下）的字段（字段名 + 类型），返回 [{field_name, field_type}]。"""
     engine = None
     try:
         from sqlalchemy import text
 
-        engine = _target_engine(host, port, dbname, username, password)
+        engine = _target_engine(host, port, dbname, username, password, ssl=ssl)
         with engine.connect() as conn:
             rows = conn.execute(
                 text(
                     "SELECT column_name, data_type "
                     "FROM information_schema.columns "
-                    "WHERE table_schema='public' AND table_name=:t "
+                    "WHERE table_schema=:s AND table_name=:t "
                     "ORDER BY ordinal_position"
                 ),
-                {"t": table_name},
+                {"s": schema or "public", "t": table_name},
             ).fetchall()
         return [{"field_name": r[0], "field_type": r[1] or ""} for r in rows]
     finally:
@@ -461,18 +538,21 @@ def preview_target_data(
     password: str,
     table_name: str,
     limit: int = 10,
+    schema: str = "public",
+    ssl: bool = False,
 ) -> dict:
-    """预览某表前 N 行，返回 {columns: [...], rows: [[...], ...]}。"""
+    """预览某表（在给定 schema 下）前 N 行，返回 {columns: [...], rows: [[...], ...]}。"""
     limit = max(1, min(int(limit), 200))
-    # 表名作为标识符：双引号包裹并转义内部引号（表名来自内省列表，仍做防御）
-    ident = '"' + str(table_name).replace('"', '""') + '"'
+    # schema/表名作为标识符：双引号包裹并转义内部引号（均来自内省，仍做防御）
+    t_ident = '"' + str(table_name).replace('"', '""') + '"'
+    s_ident = '"' + str(schema or "public").replace('"', '""') + '"'
     engine = None
     try:
         from sqlalchemy import text
 
-        engine = _target_engine(host, port, dbname, username, password)
+        engine = _target_engine(host, port, dbname, username, password, ssl=ssl)
         with engine.connect() as conn:
-            result = conn.execute(text(f"SELECT * FROM public.{ident} LIMIT {limit}"))
+            result = conn.execute(text(f"SELECT * FROM {s_ident}.{t_ident} LIMIT {limit}"))
             columns = list(result.keys())
             rows = [[_coerce(v) for v in rec] for rec in result.fetchall()]
         return {"columns": columns, "rows": rows}

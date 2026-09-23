@@ -23,6 +23,10 @@ class DataSourceCreate(BaseModel):
     username: str = Field(..., min_length=1, max_length=255)
     password: str = Field("", max_length=255)
     description: str = Field("", max_length=512)
+    schema: str = Field("public", max_length=255)
+    timeout: int = Field(6, ge=1, le=300)
+    pool_size: int = Field(5, ge=1, le=500)
+    ssl: bool = False
 
 
 class DataSourceUpdate(BaseModel):
@@ -34,6 +38,10 @@ class DataSourceUpdate(BaseModel):
     # 留空表示不改密码
     password: Optional[str] = Field(None, max_length=255)
     description: Optional[str] = Field(None, max_length=512)
+    schema: Optional[str] = Field(None, max_length=255)
+    timeout: Optional[int] = Field(None, ge=1, le=300)
+    pool_size: Optional[int] = Field(None, ge=1, le=500)
+    ssl: Optional[bool] = None
 
 
 class TestIn(BaseModel):
@@ -42,6 +50,8 @@ class TestIn(BaseModel):
     dbname: str = Field(..., min_length=1, max_length=255)
     username: str = Field(..., min_length=1, max_length=255)
     password: str = Field("", max_length=255)
+    schema: str = Field("public", max_length=255)
+    ssl: bool = False
 
 
 @router.get("/datasources")
@@ -62,6 +72,10 @@ def create_datasource(
         payload.username.strip(),
         payload.password or "",
         payload.description or "",
+        schema=payload.schema.strip() or "public",
+        timeout=payload.timeout,
+        pool_size=payload.pool_size,
+        ssl=payload.ssl,
     )
     return {"id": sid}
 
@@ -72,7 +86,10 @@ def update_datasource(
 ) -> dict:
     if ds.get_source(source_id, user_key) is None:
         raise HTTPException(status_code=404, detail="数据源不存在")
-    ok = ds.update_source(source_id, user_key, payload.model_dump(exclude_none=True))
+    fields = payload.model_dump(exclude_none=True)
+    if "schema" in fields:
+        fields["db_schema"] = (fields.pop("schema") or "").strip() or "public"
+    ok = ds.update_source(source_id, user_key, fields)
     return {"updated": ok}
 
 
@@ -100,7 +117,8 @@ def test_datasource(
     if src is None:
         raise HTTPException(status_code=404, detail="数据源不存在")
     ok, message = ds.test_connection(
-        src["host"], src["port"], src["dbname"], src["username"], src["password"]
+        src["host"], src["port"], src["dbname"], src["username"], src["password"],
+        schema=src.get("schema", "public"), ssl=src.get("ssl", False),
     )
     return {"ok": ok, "message": message}
 
@@ -111,8 +129,23 @@ def test_datasource_raw(payload: TestIn) -> dict:
     ok, message = ds.test_connection(
         payload.host.strip(), payload.port, payload.dbname.strip(),
         payload.username.strip(), payload.password or "",
+        schema=payload.schema.strip() or "public", ssl=payload.ssl,
     )
     return {"ok": ok, "message": message}
+
+
+@router.post("/datasources/introspect/schemas")
+def introspect_schemas_raw(payload: TestIn) -> dict:
+    """按表单当前值列出可用 schema（保存前的「获取 Schema」）。凭据仅用于本次连接。"""
+    try:
+        schemas = ds.list_target_schemas(
+            payload.host.strip(), payload.port, payload.dbname.strip(),
+            payload.username.strip(), payload.password or "", ssl=payload.ssl,
+        )
+    except Exception as exc:
+        msg = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
+        raise HTTPException(status_code=502, detail=f"读取 schema 失败：{msg[:160]}")
+    return {"schemas": schemas}
 
 
 # ---------------------------------------------------------------------------
@@ -179,11 +212,12 @@ def update_curated_table(
 
 @router.post("/datasources/{source_id}/introspect/tables")
 def introspect_tables(source_id: str, user_key: str = Depends(get_user_key)) -> dict:
-    """连目标库，列出 public 下的表（表名 + 注释）。"""
+    """连目标库，列出该源 schema 下的表（表名 + 注释）。"""
     src = _get_owned(source_id, user_key)
     try:
         tables = ds.list_target_tables(
-            src["host"], src["port"], src["dbname"], src["username"], src["password"]
+            src["host"], src["port"], src["dbname"], src["username"], src["password"],
+            schema=src.get("schema", "public"), ssl=src.get("ssl", False),
         )
     except Exception as exc:
         msg = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
@@ -200,7 +234,7 @@ def introspect_fields(
     try:
         fields = ds.list_target_fields(
             src["host"], src["port"], src["dbname"], src["username"], src["password"],
-            table_name,
+            table_name, schema=src.get("schema", "public"), ssl=src.get("ssl", False),
         )
     except Exception as exc:
         msg = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__
@@ -220,7 +254,7 @@ def introspect_preview(
     try:
         return ds.preview_target_data(
             src["host"], src["port"], src["dbname"], src["username"], src["password"],
-            table_name, limit,
+            table_name, limit, schema=src.get("schema", "public"), ssl=src.get("ssl", False),
         )
     except Exception as exc:
         msg = str(exc).strip().splitlines()[0] if str(exc).strip() else type(exc).__name__

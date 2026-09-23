@@ -107,6 +107,13 @@ export function testDataSourceRaw(payload) {
   return api.post('/datasources/test', payload, { timeout: 30000 }).then((res) => res.data)
 }
 
+// 内省：按表单当前值列出可用 schema（保存前的「获取 Schema」）
+export function introspectSchemasRaw(payload) {
+  return api
+    .post('/datasources/introspect/schemas', payload, { timeout: 40000 })
+    .then((res) => res.data)
+}
+
 // 内省：列出目标库 public 下的表（表名 + 注释）
 export function introspectTables(id) {
   return api
