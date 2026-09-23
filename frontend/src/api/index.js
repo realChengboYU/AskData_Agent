@@ -107,4 +107,53 @@ export function testDataSourceRaw(payload) {
   return api.post('/datasources/test', payload, { timeout: 30000 }).then((res) => res.data)
 }
 
+// 内省：列出目标库 public 下的表（表名 + 注释）
+export function introspectTables(id) {
+  return api
+    .post(`/datasources/${encodeURIComponent(id)}/introspect/tables`, null, { timeout: 40000 })
+    .then((res) => res.data)
+}
+
+// 内省：列出某表的字段（字段名 + 类型）
+export function introspectFields(id, table) {
+  return api
+    .post(`/datasources/${encodeURIComponent(id)}/introspect/fields/${encodeURIComponent(table)}`, null, {
+      timeout: 40000,
+    })
+    .then((res) => res.data)
+}
+
+// 内省：预览某表前 N 行
+export function introspectPreview(id, table, limit = 10) {
+  return api
+    .post(
+      `/datasources/${encodeURIComponent(id)}/introspect/preview/${encodeURIComponent(table)}?limit=${limit}`,
+      null,
+      { timeout: 40000 },
+    )
+    .then((res) => res.data)
+}
+
+// 已策展的表（选中/可编辑）
+export function getCuratedTables(id) {
+  return api.get(`/datasources/${encodeURIComponent(id)}/tables`).then((res) => res.data)
+}
+
+// 全量保存选中的表 + 注释
+export function saveCuratedTables(id, tables) {
+  return api
+    .put(`/datasources/${encodeURIComponent(id)}/tables`, { tables })
+    .then((res) => res.data)
+}
+
+// 更新某张表的自定义注释 / 是否启用
+export function updateCuratedTable(id, table, payload) {
+  return api
+    .patch(
+      `/datasources/${encodeURIComponent(id)}/tables/${encodeURIComponent(table)}`,
+      payload,
+    )
+    .then((res) => res.data)
+}
+
 export default api

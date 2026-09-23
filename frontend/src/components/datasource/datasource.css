@@ -178,13 +178,34 @@
   gap: 2px;
   min-width: 0;
 }
+.ds-item-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 .ds-item-name {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
   font-weight: 600;
   color: #1e3a8a;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+}
+.ds-item-count {
+  flex: none;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  color: #2563eb;
+  font-family: 'Geist Variable', system-ui, sans-serif;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 17px;
+  white-space: nowrap;
 }
 .ds-item-sub {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -639,4 +660,256 @@
   padding: 0 12px;
   font-size: 12.5px;
   border-radius: 8px;
+}
+
+/* ---- 第 3 步：选择表（左表清单 + 右字段/注释/预览）---- */
+.dsrc-tables {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+.dsrc-tables-left,
+.dsrc-tables-right {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+}
+.dsrc-tables-left {
+  width: 44%;
+  flex: none;
+}
+.dsrc-tables-right {
+  flex: 1;
+  min-width: 0;
+  padding: 14px;
+  gap: 12px;
+}
+
+/* 左：工具栏（搜索 + 全选）*/
+.dsrc-tables-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border-bottom: 1px solid #e2ecfb;
+  background: #f8fbff;
+}
+.dsrc-tables-search {
+  flex: 1;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #fff;
+  color: #94a3b8;
+}
+.dsrc-tables-search:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+.dsrc-tables-search input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #1e3a8a;
+}
+.dsrc-tables-search input::placeholder {
+  color: #b6c2d6;
+}
+.dsrc-tables-all {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  user-select: none;
+}
+.dsrc-tables-all input {
+  accent-color: #2563eb;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+.dsrc-tables-count {
+  padding: 7px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 1px solid #eef3fb;
+  background: #fbfdff;
+}
+.dsrc-tables-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  max-height: 460px;
+  flex: 1;
+}
+.dsrc-table {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #334155;
+  transition: background 0.13s ease;
+}
+.dsrc-table:hover {
+  background: #f5f9ff;
+}
+.dsrc-table.active {
+  background: #eff6ff;
+  box-shadow: inset 0 0 0 1px #bfdbfe;
+}
+.dsrc-table input {
+  accent-color: #2563eb;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  cursor: pointer;
+}
+.dsrc-table-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dsrc-table-note {
+  margin-left: auto;
+  flex: none;
+  color: #2563eb;
+  font-size: 12px;
+}
+.dsrc-tables-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 26px 14px;
+  color: #94a3b8;
+  font-size: 12.5px;
+}
+
+/* 右：表名 + 注释 + 字段 + 预览 */
+.dsrc-ds-name {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.ds-conn-code-inline {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: #1e3a8a;
+  word-break: break-all;
+}
+.dsrc-ds-comment {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+.ds-input-area {
+  height: auto;
+  min-height: 52px;
+  padding: 9px 12px;
+  line-height: 1.55;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.dsrc-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+.dsrc-fields-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dsrc-fields-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #475569;
+}
+.dsrc-fields-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  max-height: 260px;
+  border: 1px solid #eef3fb;
+  border-radius: 9px;
+}
+.dsrc-fields-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 11px;
+  border-bottom: 1px solid #f1f5fb;
+}
+.dsrc-fields-list li:last-child {
+  border-bottom: none;
+}
+.dsrc-field-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #1e3a8a;
+}
+.dsrc-field-type {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.dsrc-preview {
+  overflow: auto;
+  max-height: 300px;
+  border: 1px solid #eef3fb;
+  border-radius: 9px;
+}
+.dsrc-preview-table {
+  border-collapse: collapse;
+  font-size: 11.5px;
+  min-width: 100%;
+}
+.dsrc-preview-table th,
+.dsrc-preview-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid #f1f5fb;
+  text-align: left;
+  white-space: nowrap;
+}
+.dsrc-preview-table thead th {
+  position: sticky;
+  top: 0;
+  background: #f8fbff;
+  color: #475569;
+  font-weight: 650;
+  border-bottom: 1px solid #dbeafe;
+}
+.dsrc-preview-table td {
+  color: #334155;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
