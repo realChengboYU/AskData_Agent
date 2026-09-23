@@ -81,6 +81,27 @@ def _ensure_table() -> None:
                 "CREATE INDEX IF NOT EXISTS idx_data_source_tables_ds "
                 "ON data_source_tables (ds_id)"
             )
+            # 字段级策展：某表下每个字段的 勾选 / 自定义注释 / 枚举值
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS data_source_fields (
+                    ds_id          text        NOT NULL,
+                    table_name     text        NOT NULL,
+                    field_name     text        NOT NULL,
+                    field_type     text,
+                    checked        boolean     NOT NULL DEFAULT true,
+                    custom_comment text,
+                    enum_values    text,
+                    created_at     timestamptz NOT NULL DEFAULT now(),
+                    updated_at     timestamptz NOT NULL DEFAULT now(),
+                    PRIMARY KEY (ds_id, table_name, field_name)
+                )
+                """
+            )
+            cur.execute(
+                "CREATE INDEX IF NOT EXISTS idx_data_source_fields_ds "
+                "ON data_source_fields (ds_id)"
+            )
 
 
 def build_pg_url(
@@ -226,6 +247,7 @@ def delete_source(source_id: str, user_key: str) -> bool:
             deleted = (cur.rowcount or 0) > 0
             if deleted:
                 cur.execute("DELETE FROM data_source_tables WHERE ds_id=%s", [source_id])
+                cur.execute("DELETE FROM data_source_fields WHERE ds_id=%s", [source_id])
             return deleted
     return False
 
@@ -312,7 +334,7 @@ def test_connection(
 # ---------------------------------------------------------------------------
 
 def get_tables(ds_id: str) -> list[dict]:
-    """返回某数据源已策展的表（表名 / 表注释 / 自定义注释 / 是否启用）。"""
+    """返回某数据源已策展的表（含每表的字段：勾选 / 注释 / 枚举值）。"""
     _ensure_table()
     with get_pool().connection() as conn:
         with conn.cursor() as cur:
@@ -321,22 +343,43 @@ def get_tables(ds_id: str) -> list[dict]:
                 "FROM data_source_tables WHERE ds_id=%s ORDER BY table_name",
                 [ds_id],
             )
-            rows = cur.fetchall()
+            trows = cur.fetchall()
+            cur.execute(
+                "SELECT table_name, field_name, field_type, checked, "
+                "custom_comment, enum_values "
+                "FROM data_source_fields WHERE ds_id=%s "
+                "ORDER BY table_name, field_name",
+                [ds_id],
+            )
+            frows = cur.fetchall()
+    fields_by_table: dict[str, list[dict]] = {}
+    for tn, fn, ft, fc, fcc, fe in frows:
+        fields_by_table.setdefault(tn, []).append(
+            {
+                "field_name": fn,
+                "field_type": ft or "",
+                "checked": bool(fc),
+                "custom_comment": fcc or "",
+                "enum_values": fe or "",
+            }
+        )
     return [
         {
             "table_name": a,
             "table_comment": b or "",
             "custom_comment": c or "",
             "checked": bool(d),
+            "fields": fields_by_table.get(a, []),
         }
-        for a, b, c, d in rows
+        for a, b, c, d in trows
     ]
 
 
 def save_tables(ds_id: str, tables: list[dict]) -> int:
-    """全量替换某数据源的策展表。
+    """全量替换某数据源的策展表 + 字段。
 
-    ``tables``: [{"table_name", "table_comment"?, "custom_comment"?, "checked"?}]。
+    ``tables``: [{table_name, table_comment?, custom_comment?, checked?,
+                 fields?: [{field_name, field_type?, checked?, custom_comment?, enum_values?}]}]
     同时把 data_sources.num 更新为选中（checked=true）的表数。
     """
     _ensure_table()
@@ -344,6 +387,7 @@ def save_tables(ds_id: str, tables: list[dict]) -> int:
     with get_pool().connection() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM data_source_tables WHERE ds_id=%s", [ds_id])
+            cur.execute("DELETE FROM data_source_fields WHERE ds_id=%s", [ds_id])
             for t in tables:
                 name = str(t.get("table_name") or "").strip()
                 if not name:
@@ -361,6 +405,23 @@ def save_tables(ds_id: str, tables: list[dict]) -> int:
                     [ds_id, name, t.get("table_comment") or "",
                      t.get("custom_comment") or "", checked],
                 )
+                for f in (t.get("fields") or []):
+                    fname = str(f.get("field_name") or "").strip()
+                    if not fname:
+                        continue
+                    cur.execute(
+                        "INSERT INTO data_source_fields "
+                        "(ds_id, table_name, field_name, field_type, checked, "
+                        "custom_comment, enum_values) "
+                        "VALUES(%s, %s, %s, %s, %s, %s, %s) "
+                        "ON CONFLICT (ds_id, table_name, field_name) DO UPDATE SET "
+                        "field_type=EXCLUDED.field_type, checked=EXCLUDED.checked, "
+                        "custom_comment=EXCLUDED.custom_comment, "
+                        "enum_values=EXCLUDED.enum_values, updated_at=now()",
+                        [ds_id, name, fname, f.get("field_type") or "",
+                         bool(f.get("checked", True)), f.get("custom_comment") or "",
+                         f.get("enum_values") or ""],
+                    )
             cur.execute(
                 f"UPDATE {_TABLE} SET num=%s, updated_at=now() WHERE id=%s",
                 [checked_n, ds_id],
@@ -405,6 +466,7 @@ def delete_tables(ds_id: str) -> int:
     with get_pool().connection() as conn:
         with conn.cursor() as cur:
             cur.execute("DELETE FROM data_source_tables WHERE ds_id=%s", [ds_id])
+            cur.execute("DELETE FROM data_source_fields WHERE ds_id=%s", [ds_id])
             n = cur.rowcount or 0
             cur.execute(
                 f"UPDATE {_TABLE} SET num=0, updated_at=now() WHERE id=%s", [ds_id]

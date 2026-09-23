@@ -858,20 +858,65 @@
   margin: 0;
   padding: 0;
   overflow-y: auto;
-  max-height: 260px;
+  max-height: 440px;
   border: 1px solid #eef3fb;
   border-radius: 9px;
 }
 .dsrc-fields-list li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 6px 11px;
   border-bottom: 1px solid #f1f5fb;
 }
 .dsrc-fields-list li:last-child {
   border-bottom: none;
+}
+.dsrc-fields-n {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #94a3b8;
+}
+/* 字段行：勾选 + 注释 + 枚举 */
+.dsrc-fields-list .dsrc-fieldrow {
+  display: block;
+  padding: 7px 11px;
+}
+.dsrc-fieldrow-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.dsrc-fieldrow-head input {
+  accent-color: #2563eb;
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+}
+.dsrc-fieldrow .dsrc-field-name {
+  flex: none;
+  max-width: 58%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.dsrc-fieldrow .dsrc-field-type {
+  margin-left: auto;
+  flex: none;
+}
+.dsrc-fieldrow.off .dsrc-field-name {
+  color: #b6c2d6;
+}
+.dsrc-fieldrow-inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+.ds-input-sm {
+  height: 30px;
+  padding: 0 9px;
+  font-size: 12px;
+  border-radius: 7px;
 }
 .dsrc-field-name {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

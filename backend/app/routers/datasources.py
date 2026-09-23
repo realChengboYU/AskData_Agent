@@ -152,11 +152,20 @@ def introspect_schemas_raw(payload: TestIn) -> dict:
 # 策展：连目标库读元数据（表/字段/预览）+ 保存选中的表和注释
 # ---------------------------------------------------------------------------
 
+class FieldIn(BaseModel):
+    field_name: str = Field(..., min_length=1, max_length=255)
+    field_type: Optional[str] = ""
+    checked: bool = True
+    custom_comment: Optional[str] = ""
+    enum_values: Optional[str] = ""
+
+
 class TableIn(BaseModel):
     table_name: str = Field(..., min_length=1, max_length=255)
     table_comment: Optional[str] = ""
     custom_comment: Optional[str] = ""
     checked: bool = True
+    fields: list[FieldIn] = []
 
 
 class SaveTablesIn(BaseModel):

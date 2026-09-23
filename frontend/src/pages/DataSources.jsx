@@ -16,6 +16,7 @@ import {
   createDataSource,
   deleteDataSource,
   getDataSources,
+  getCuratedTables,
   introspectFields,
   introspectPreview,
   introspectSchemasRaw,
@@ -456,18 +457,22 @@ function DataSourceForm({ editing, existingId, onNext, onPrev, onError }) {
 // 第 3 步：选择表（左表清单 + 右字段/注释/预览）
 function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
   const { t } = useI18n()
-  const [tables, setTables] = useState([]) // [{table_name, table_comment, custom_comment, checked}]
+  // 每张表带 fields:[{field_name, field_type, checked, custom_comment, enum_values}]
+  const [tables, setTables] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadErr, setLoadErr] = useState('')
   const [search, setSearch] = useState('')
   const [active, setActive] = useState('')
-  const [fields, setFields] = useState([])
   const [fieldsLoading, setFieldsLoading] = useState(false)
   const [preview, setPreview] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const tablesRef = useRef([])
+  useEffect(() => {
+    tablesRef.current = tables
+  }, [tables])
 
-  // 载入目标库的表
+  // 载入目标库的表 + 已策展状态（勾选/注释/字段）
   useEffect(() => {
     let live = true
     setLoading(true)
@@ -475,16 +480,23 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
     setTables([])
     setActive('')
     setPreview(null)
-    setFields([])
+    const curP = getCuratedTables(sourceId).catch(() => ({ tables: [] }))
     introspectTables(sourceId)
-      .then((d) => {
+      .then(async (d) => {
+        const cd = await curP
         if (!live) return
-        const list = (d?.tables ?? []).map((x) => ({
-          table_name: x.table_name,
-          table_comment: x.table_comment || '',
-          custom_comment: '',
-          checked: true,
-        }))
+        const curatedMap = {}
+        for (const ct of cd?.tables ?? []) curatedMap[ct.table_name] = ct
+        const list = (d?.tables ?? []).map((x) => {
+          const cur = curatedMap[x.table_name]
+          return {
+            table_name: x.table_name,
+            table_comment: x.table_comment || '',
+            custom_comment: cur?.custom_comment || '',
+            checked: cur ? cur.checked : true,
+            fields: cur?.fields ?? [],
+          }
+        })
         setTables(list)
         if (list.length) setActive(list[0].table_name)
       })
@@ -498,15 +510,31 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sourceId])
 
-  // 切换到某张表 → 载入其字段
+  // 切换到某张表 → 载入其字段（live 字段 + 已有勾选/注释/枚举 状态合并）
   useEffect(() => {
     if (!active) return
     let live = true
     setFieldsLoading(true)
-    setFields([])
     setPreview(null)
     introspectFields(sourceId, active)
-      .then((d) => live && setFields(d?.fields ?? []))
+      .then((d) => {
+        if (!live) return
+        const liveFields = d?.fields ?? []
+        const prev = tablesRef.current.find((x) => x.table_name === active)?.fields ?? []
+        const prevMap = {}
+        for (const p of prev) prevMap[p.field_name] = p
+        const merged = liveFields.map((f) => {
+          const p = prevMap[f.field_name]
+          return {
+            field_name: f.field_name,
+            field_type: f.field_type || '',
+            checked: p ? p.checked : true,
+            custom_comment: p?.custom_comment || '',
+            enum_values: p?.enum_values || '',
+          }
+        })
+        setTables((ts) => ts.map((x) => (x.table_name === active ? { ...x, fields: merged } : x)))
+      })
       .catch(() => {})
       .finally(() => live && setFieldsLoading(false))
     return () => {
@@ -524,6 +552,15 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
   const setChecked = (name, val) => setTables((ts) => ts.map((x) => (x.table_name === name ? { ...x, checked: val } : x)))
   const setComment = (name, val) => setTables((ts) => ts.map((x) => (x.table_name === name ? { ...x, custom_comment: val } : x)))
   const setAll = (val) => setTables((ts) => ts.map((x) => ({ ...x, checked: val })))
+  // 更新活动表某字段的 勾选 / 注释 / 枚举
+  const setField = (tableName, fieldName, key, val) =>
+    setTables((ts) =>
+      ts.map((x) =>
+        x.table_name === tableName
+          ? { ...x, fields: (x.fields || []).map((f) => (f.field_name === fieldName ? { ...f, [key]: val } : f)) }
+          : x,
+      ),
+    )
 
   async function doPreview() {
     if (!active || previewLoading) return
@@ -640,7 +677,17 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
 
                 <div className="dsrc-fields">
                   <div className="dsrc-fields-head">
-                    <span className="dsrc-fields-title">{t('ds.fields')}</span>
+                    <span className="dsrc-fields-title">
+                      {t('ds.fields')}
+                      {(activeRow?.fields || []).length > 0 && (
+                        <span className="dsrc-fields-n">
+                          {t('ds.fieldChecked', {
+                            n: (activeRow?.fields || []).filter((f) => f.checked).length,
+                            total: (activeRow?.fields || []).length,
+                          })}
+                        </span>
+                      )}
+                    </span>
                     <button
                       type="button"
                       className="ds-btn ds-btn-ghost ds-btn-sm"
@@ -676,15 +723,40 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
                     <div className="dsrc-tables-state">
                       <LoadingOutlined spin />
                     </div>
-                  ) : (
+                  ) : (activeRow?.fields || []).length ? (
                     <ul className="dsrc-fields-list">
-                      {fields.map((f) => (
-                        <li key={f.field_name}>
-                          <code className="dsrc-field-name">{f.field_name}</code>
-                          <span className="dsrc-field-type">{f.field_type}</span>
+                      {(activeRow?.fields || []).map((f) => (
+                        <li key={f.field_name} className={`dsrc-fieldrow${f.checked ? '' : ' off'}`}>
+                          <label className="dsrc-fieldrow-head">
+                            <input
+                              type="checkbox"
+                              checked={f.checked}
+                              onChange={(e) => setField(active, f.field_name, 'checked', e.target.checked)}
+                            />
+                            <code className="dsrc-field-name">{f.field_name}</code>
+                            <span className="dsrc-field-type">{f.field_type}</span>
+                          </label>
+                          {f.checked && (
+                            <div className="dsrc-fieldrow-inputs">
+                              <input
+                                className="ds-input ds-input-sm"
+                                placeholder={`${t('ds.fieldComment')} · ${t('ds.fieldCommentPh')}`}
+                                value={f.custom_comment}
+                                onChange={(e) => setField(active, f.field_name, 'custom_comment', e.target.value)}
+                              />
+                              <input
+                                className="ds-input ds-input-sm"
+                                placeholder={`${t('ds.fieldEnum')} · ${t('ds.fieldEnumPh')}`}
+                                value={f.enum_values}
+                                onChange={(e) => setField(active, f.field_name, 'enum_values', e.target.value)}
+                              />
+                            </div>
+                          )}
                         </li>
                       ))}
                     </ul>
+                  ) : (
+                    <div className="dsrc-tables-state">{t('ds.tablesEmpty')}</div>
                   )}
                 </div>
               </>
