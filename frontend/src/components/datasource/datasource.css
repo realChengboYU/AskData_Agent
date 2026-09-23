@@ -2,9 +2,10 @@
    布局：白顶栏(back + 标题 + PG 徽标) + 居中左对齐内容栏(最大 760px)。
    唯一的"重"元素仍是表单里的连接串预览块（navy 底 / 等宽 / 密码打码）。 */
 
-/* ---- 页面外壳 ---- */
+/* ---- 页面外壳（嵌入 chat-main，右侧主区）---- */
 .dsrc-page {
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   background: #eff6ff;
@@ -72,6 +73,8 @@
 
 .dsrc-container {
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   width: 100%;
   max-width: 760px;
   margin: 0 auto;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AssistantChat from '@/components/assistant-chat'
+import DataSources from './DataSources'
 import { BookOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import { LANGS, LANG_LABELS, useI18n } from '../i18n'
 import { deleteSession, exportSession, getHistory, getSessions, renameSession } from '../api'
@@ -110,6 +111,7 @@ export default function Chat() {
   const navigate = useNavigate()
   const { t } = useI18n()
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [dsView, setDsView] = useState(false)
   // 当前会话的历史消息（原始后端结构，交给 AssistantChat 转成 UI）
   const [historyMessages, setHistoryMessages] = useState([])
   // 每次历史重新加载都 +1，用作 AssistantChat 的 key 的一部分：
@@ -185,6 +187,7 @@ export default function Chat() {
 
   // 切换到指定会话：更新 session id，并加载它的历史
   const openSession = (sid) => {
+    setDsView(false)
     if (!sid || sid === sessionIdRef.current) return
     sessionIdRef.current = sid
     localStorage.setItem('askdata_session', sid)
@@ -276,6 +279,7 @@ export default function Chat() {
   }
 
   function newChat() {
+    setDsView(false)
     sessionIdRef.current = makeId()
     localStorage.setItem('askdata_session', sessionIdRef.current)
     setHistoryMessages([])
@@ -322,7 +326,7 @@ export default function Chat() {
               <button type="button" className="side-icon" title="知识库">
                 <BookOutlined />
               </button>
-              <button type="button" className="side-icon" title={t('ds.title')} onClick={() => navigate('/datasources')}>
+              <button type="button" className={`side-icon${dsView ? ' active' : ''}`} title={t('ds.title')} onClick={() => setDsView(true)}>
                 <DatabaseOutlined />
               </button>
               <button type="button" className="side-icon" title="新建窗口">
@@ -437,21 +441,27 @@ export default function Chat() {
           </aside>
 
           <div className="chat-main" style={{ ['--thread-max-width']: `${threadWidth}rem` }}>
-            <header className="chat-head">
-              <div className="chat-head-right">
-                <span className="chat-user">{user?.name || 'deepdata'}</span>
-                <button className="chat-logout" onClick={logout}>{t('logout')}</button>
-              </div>
-            </header>
-            <main className="chat-body">
-              <AssistantChat
-                key={`${sessionIdRef.current}:${historyVersion}`}
-                threadId={sessionIdRef.current}
-                initialMessages={historyMessages}
-                onFinish={handleRunFinish}
-                onResizeWidth={handleResizeWidth}
-              />
-            </main>
+            {dsView ? (
+              <DataSources onBackToChat={() => setDsView(false)} />
+            ) : (
+              <>
+                <header className="chat-head">
+                  <div className="chat-head-right">
+                    <span className="chat-user">{user?.name || 'deepdata'}</span>
+                    <button className="chat-logout" onClick={logout}>{t('logout')}</button>
+                  </div>
+                </header>
+                <main className="chat-body">
+                  <AssistantChat
+                    key={`${sessionIdRef.current}:${historyVersion}`}
+                    threadId={sessionIdRef.current}
+                    initialMessages={historyMessages}
+                    onFinish={handleRunFinish}
+                    onResizeWidth={handleResizeWidth}
+                  />
+                </main>
+              </>
+            )}
           </div>
         </div>
   )

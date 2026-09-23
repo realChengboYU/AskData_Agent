@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   CheckCircleFilled,
   CloseOutlined,
@@ -387,8 +386,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
   )
 }
 
-export default function DataSources() {
-  const navigate = useNavigate()
+export default function DataSources({ onBackToChat }) {
   const { t } = useI18n()
   const [sources, setSources] = useState([])
   const [loading, setLoading] = useState(false)
@@ -429,7 +427,7 @@ export default function DataSources() {
     if (view === 'edit') return setView('list')
     if (view === 'new' && newStep === 'form') return setNewStep('type')
     if (view === 'new' && newStep === 'type') return setView('list')
-    navigate('/chat')
+    onBackToChat?.()
   }
 
   const title =

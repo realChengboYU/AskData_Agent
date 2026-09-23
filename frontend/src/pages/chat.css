@@ -638,6 +638,10 @@
   background: rgba(37, 99, 235, 0.08);
   color: #2563eb;
 }
+.side-icon.active {
+  background: rgba(37, 99, 235, 0.14);
+  color: #2563eb;
+}
 .side-section {
   padding: 0 6px 8px;
   font-size: 11px;
