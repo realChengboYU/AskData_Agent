@@ -201,9 +201,9 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 64px;
+  height: 64px;
+  border-radius: 16px;
   background: #eef4ff;
   color: #1e3a8a;
   transition: background 0.2s ease;
