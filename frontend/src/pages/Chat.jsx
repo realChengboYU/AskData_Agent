@@ -445,7 +445,7 @@ export default function Chat() {
             </div>
           </aside>
 
-          <div className="chat-main" style={{ ['--thread-max-width']: `${threadWidth}rem` }}>
+          <div className={`chat-main${dsView ? ' is-ds' : ''}`} style={{ ['--thread-max-width']: `${threadWidth}rem` }}>
             {/* 两个视图都保持挂载，用 display 切换：切到数据源再返回时，
                 AssistantChat 的内部状态（滚动 / 草稿 / 展开的思考 / 进行中的流）得以保留。 */}
             <div className={`chat-view${dsView ? ' hidden' : ''}`}>

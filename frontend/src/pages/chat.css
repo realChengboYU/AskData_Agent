@@ -247,6 +247,14 @@
   flex-direction: column;
   gap: 22px;
 }
+/* 数据源视图：不受对话条宽度/居中/滚动约束，占满主区（卡片网格需要宽度） */
+.chat-main.is-ds {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  overflow: hidden;
+  gap: 0;
+}
 
 .chat-empty {
   margin: auto;
