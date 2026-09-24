@@ -810,38 +810,62 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
           <PlusOutlined /> {t('ds.new')}
         </button>
       </div>
-      <div className="ds-list dsrc-list">
+      <div className="ds-list">
         {sources.map((s) => {
           const active = s.id === activeId
           return (
-            <div key={s.id} className={`ds-item${active ? ' active' : ''}`}>
-              <button type="button" className="ds-item-main" onClick={() => onEdit(s)} title={t('ds.edit')}>
-                <span className={`ds-item-dot${active ? ' on' : ''}`} aria-hidden="true" />
-                <span className="ds-item-body">
-                  <span className="ds-item-name-row">
-                    <span className="ds-item-name">{s.name}</span>
-                    {typeof s.num === 'number' && s.num > 0 && (
-                      <span className="ds-item-count">{t('ds.nTables', { n: s.num })}</span>
-                    )}
+            <article key={s.id} className={`ds-card${active ? ' active' : ''}`}>
+              <div
+                className="ds-card-open"
+                role="button"
+                tabIndex={0}
+                aria-label={`${t('ds.edit')} · ${s.name}`}
+                onClick={() => onEdit(s)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    onEdit(s)
+                  }
+                }}
+              >
+                <div className="ds-card-top">
+                  <span className="ds-card-glyph" aria-hidden="true">
+                    <DatabaseGlyph size={18} />
                   </span>
-                  <span className="ds-item-sub">{s.username}@{s.host}:{s.port} / {s.dbname}</span>
-                </span>
-              </button>
-              <div className="ds-item-side">
+                  <span className="ds-card-name">{s.name}</span>
+                </div>
+                <div className="ds-card-conn">
+                  <span className="ds-card-host">
+                    {s.host}:{s.port}
+                  </span>
+                  <span className="ds-card-db">
+                    <span className="ds-card-dbname">{s.dbname}</span>
+                    {s.schema && s.schema !== 'public' ? <span className="ds-card-sch">{s.schema}</span> : null}
+                  </span>
+                </div>
+                <div className="ds-card-meta">
+                  <span className="ds-card-num">
+                    {typeof s.num === 'number' ? s.num : 0}
+                    <small>{t('ds.tablesShort')}</small>
+                  </span>
+                  {s.ssl ? <span className="ds-card-flag">SSL</span> : null}
+                </div>
+                {s.description ? <p className="ds-card-desc">{s.description}</p> : null}
+              </div>
+              <div className="ds-card-foot">
                 {active ? (
-                  <span className="ds-active-tag">{t('ds.active')}</span>
+                  <span className="ds-card-ineuse">{t('ds.active')}</span>
                 ) : (
                   <button
                     type="button"
-                    className="ds-act-use"
+                    className="ds-card-use"
                     disabled={busy === s.id}
                     onClick={() => onSetActive(s.id)}
-                    title={t('ds.setActive')}
                   >
                     {t('ds.setActive')}
                   </button>
                 )}
-                <span className="ds-item-actions">
+                <span className="ds-card-acts">
                   <button
                     type="button"
                     className="ds-act"
@@ -859,7 +883,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
                   </button>
                 </span>
               </div>
-            </div>
+            </article>
           )
         })}
       </div>
