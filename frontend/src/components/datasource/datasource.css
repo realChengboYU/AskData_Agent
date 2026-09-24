@@ -321,42 +321,44 @@
 }
 
 /* ---- 空态 ---- */
+/* 空态：铺满内容区高度的"空列表区域"（虚线框 = 这里即将出现数据源），内容居中引导 */
 .ds-empty {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   text-align: center;
   gap: 6px;
-  margin: 12px auto 0;
-  max-width: 400px;
-  padding: 44px 32px 40px;
-  background: #fff;
-  border: 1px solid #e6eefb;
+  padding: 56px 24px;
+  background: #f5f9ff;
+  border: 1.5px dashed #c9d8ef;
   border-radius: 16px;
+  box-sizing: border-box;
 }
 .ds-empty-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 66px;
-  height: 66px;
-  border-radius: 20px;
-  background: #eff6ff;
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: #e3edff;
   color: #2563eb;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 .ds-empty-title {
   margin: 0;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 650;
   color: #1e3a8a;
 }
 .ds-empty-sub {
-  margin: 0 0 18px;
-  font-size: 13px;
+  margin: 0 0 20px;
+  font-size: 13.5px;
   line-height: 1.6;
   color: #64748b;
-  max-width: 280px;
+  max-width: 340px;
 }
 
 /* ---- 流程（选择类型 / 配置连接）---- */
