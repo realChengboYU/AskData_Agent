@@ -172,4 +172,21 @@ export function updateCuratedTable(id, table, payload) {
     .then((res) => res.data)
 }
 
+// ===== 设置：对话模型配置 + 测试连接 =====
+
+// 读取当前用户生效的模型配置（Key 打码回传：{ base_url, model, has_key, key_masked }）
+export function getLlmConfig() {
+  return retry(() => api.get('/settings/llm').then((res) => res.data))
+}
+
+// 保存模型配置（api_key 留空则保留已有）
+export function saveLlmConfig(payload) {
+  return api.put('/settings/llm', payload).then((res) => res.data)
+}
+
+// 测试模型连接（不保存；空字段回退到已存 / 默认配置）
+export function testLlmConfig(payload) {
+  return api.post('/settings/llm/test', payload, { timeout: 40000 }).then((res) => res.data)
+}
+
 export default api

@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AssistantChat from '@/components/assistant-chat'
 import DataSources from './DataSources'
-import { BookOutlined, CaretDownOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
+import { ApiOutlined, BookOutlined, CaretDownOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, LoadingOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import { LANGS, LANG_LABELS, useI18n } from '../i18n'
-import { deleteSession, exportSession, getHistory, getSessions, renameSession, getDataSources, setSessionDataSource } from '../api'
+import { deleteSession, exportSession, getHistory, getSessions, renameSession, getDataSources, setSessionDataSource, getLlmConfig, saveLlmConfig, testLlmConfig } from '../api'
 import pgIcon from '../assets/ds/pg.svg'
 import './chat.css'
 
@@ -57,53 +57,178 @@ function mapHistory(data) {
   })
 }
 
-// 设置按钮：点击展开语言切换（简体中文 / English）
-function SettingsButton() {
-  const { lang, setLang, t } = useI18n()
-  const [open, setOpen] = useState(false)
-  const wrapRef = useRef(null)
+// 设置按钮：点击打开设置弹窗
+function SettingsButton({ onOpen }) {
+  const { t } = useI18n()
+  return (
+    <button type="button" className="chat-settings" aria-label={t('settings')} title={t('settings')} onClick={onOpen}>
+      <SettingOutlined />
+      <span className="settings-label">{t('settings')}</span>
+    </button>
+  )
+}
 
+// 设置弹窗：① 对话模型配置（Base URL / 名称 / API Key + 测试连接）② 语言
+function SettingsModal({ open, onClose }) {
+  const { lang, setLang, t } = useI18n()
+  const [baseUrl, setBaseUrl] = useState('')
+  const [model, setModel] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [hasKey, setHasKey] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  // 打开时读取当前生效配置；关闭时重置一次性状态
   useEffect(() => {
     if (!open) return
-    const onDoc = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', onDoc)
-    return () => document.removeEventListener('mousedown', onDoc)
+    setApiKey('')
+    setTestResult(null)
+    setSaved(false)
+    getLlmConfig()
+      .then((d) => {
+        setBaseUrl(d?.base_url || '')
+        setModel(d?.model || '')
+        setHasKey(!!d?.has_key)
+      })
+      .catch(() => {})
   }, [open])
 
+  // Esc 关闭
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [open, onClose])
+
+  if (!open) return null
+
+  const doTest = () => {
+    setTesting(true)
+    setTestResult(null)
+    testLlmConfig({ base_url: baseUrl, model, api_key: apiKey })
+      .then((r) => setTestResult({ ok: !!r?.ok, msg: r?.message || '' }))
+      .catch((e) => setTestResult({ ok: false, msg: e?.response?.data?.message || String(e) }))
+      .finally(() => setTesting(false))
+  }
+
+  const doSave = () => {
+    setSaving(true)
+    saveLlmConfig({ base_url: baseUrl, model, api_key: apiKey })
+      .then(() => {
+        if (apiKey.trim()) setHasKey(true)
+        setSaved(true)
+        setTimeout(() => setSaved(false), 2400)
+      })
+      .catch(() => {})
+      .finally(() => setSaving(false))
+  }
+
   return (
-    <div className="settings-wrap" ref={wrapRef}>
-      <button
-        type="button"
-        className="chat-settings"
-        aria-label={t('settings')}
-        title={t('settings')}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <SettingOutlined />
-        <span className="settings-label">{t('settings')}</span>
-      </button>
-      {open && (
-        <div className="settings-pop">
-          <div className="settings-title">{t('language')}</div>
-          {LANGS.map((l) => (
-            <button
-              key={l}
-              type="button"
-              className={`lang-opt${lang === l ? ' active' : ''}`}
-              onClick={() => {
-                setLang(l)
-                setOpen(false)
-              }}
-            >
-              <span className="lang-flag">{l === 'zh' ? '中' : 'EN'}</span>
-              <span className="lang-label">{LANG_LABELS[l]}</span>
-              {lang === l && <CheckOutlined className="lang-check" />}
-            </button>
-          ))}
+    <div
+      className="settings-overlay"
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose()
+      }}
+    >
+      <div className="settings-panel" role="dialog" aria-modal="true" aria-label={t('settings')}>
+        <header className="settings-head">
+          <span className="settings-title">{t('settings')}</span>
+          <button type="button" className="settings-close" onClick={onClose} aria-label={t('close')}>
+            <CloseOutlined />
+          </button>
+        </header>
+
+        <div className="settings-body">
+          <section className="settings-section">
+            <div className="settings-section-title">{t('settings.model')}</div>
+            <p className="settings-section-sub">{t('settings.modelSub')}</p>
+
+            <div className="settings-field">
+              <label className="settings-field-label" htmlFor="set-baseurl">
+                {t('settings.baseUrl')}
+              </label>
+              <input
+                id="set-baseurl"
+                className="settings-input mono"
+                type="text"
+                value={baseUrl}
+                onChange={(e) => setBaseUrl(e.target.value)}
+                placeholder="http://host:port/v1"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </div>
+            <div className="settings-field">
+              <label className="settings-field-label" htmlFor="set-model">
+                {t('settings.modelName')}
+              </label>
+              <input
+                id="set-model"
+                className="settings-input mono"
+                type="text"
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="gpt-4o-mini"
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </div>
+            <div className="settings-field">
+              <label className="settings-field-label" htmlFor="set-key">
+                {t('settings.apiKey')}
+              </label>
+              <input
+                id="set-key"
+                className="settings-input mono"
+                type="password"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={hasKey ? t('settings.apiKeyKeep') : t('settings.apiKeyPh')}
+                spellCheck={false}
+                autoComplete="off"
+              />
+            </div>
+
+            <div className="settings-test-row">
+              <button type="button" className="settings-btn ghost" onClick={doTest} disabled={testing}>
+                {testing ? <LoadingOutlined spin /> : <ApiOutlined />}
+                <span>{testing ? t('settings.testing') : t('settings.test')}</span>
+              </button>
+              {testResult && (
+                <span className={`settings-test-result ${testResult.ok ? 'ok' : 'err'}`}>{testResult.msg}</span>
+              )}
+            </div>
+          </section>
+
+          <section className="settings-section">
+            <div className="settings-section-title">{t('language')}</div>
+            <div className="settings-lang">
+              {LANGS.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  className={`lang-opt${lang === l ? ' active' : ''}`}
+                  onClick={() => setLang(l)}
+                >
+                  <span className="lang-flag">{l === 'zh' ? '中' : 'EN'}</span>
+                  <span className="lang-label">{LANG_LABELS[l]}</span>
+                  {lang === l && <CheckOutlined className="lang-check" />}
+                </button>
+              ))}
+            </div>
+          </section>
         </div>
-      )}
+
+        <footer className="settings-foot">
+          <span className={`settings-saved-tip${saved ? ' show' : ''}`}>{t('settings.saved')}</span>
+          <button type="button" className="settings-btn primary" onClick={doSave} disabled={saving}>
+            {saving ? t('settings.saving') : t('settings.save')}
+          </button>
+        </footer>
+      </div>
     </div>
   )
 }
@@ -168,6 +293,7 @@ export default function Chat() {
   const { t } = useI18n()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [dsView, setDsView] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   // 当前会话绑定的数据源 id（每次对话只针对一个库；会话内可切换）
   const [currentDsId, setCurrentDsId] = useState(null)
   // 数据源列表（供顶部切换器 / 「使用中」默认）
@@ -552,7 +678,7 @@ export default function Chat() {
             </div>
 
             <div className="side-footer">
-              <SettingsButton />
+              <SettingsButton onOpen={() => setSettingsOpen(true)} />
             </div>
           </aside>
 
@@ -586,6 +712,8 @@ export default function Chat() {
               </div>
             )}
           </div>
+
+          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
         </div>
   )
 }

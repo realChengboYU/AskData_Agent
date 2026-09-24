@@ -18,6 +18,7 @@ from openai import APITimeoutError
 from app.datasource.pg import PG_CONNECTION_STRING
 from app.prompt import build_messages
 from app.services import datasource_store as ds
+from app.services import llm_store
 from app.services.pipeline.chart import (
     build_spec_from_tool_events,
     is_chart_call,
@@ -33,7 +34,7 @@ from app.services.pipeline.clarify import (
     put_pending,
 )
 from app.services.pipeline.graph import _GRAPH
-from app.services.pipeline.llm import LLM_TIMEOUT, _env, _invoke_tool
+from app.services.pipeline.llm import LLM_TIMEOUT, _invoke_tool
 from app.services.pipeline.router import (
     has_recent_result,
     recent_result_context,
@@ -264,9 +265,9 @@ async def run_agent_stream(
     try:
         from langchain_deepseek import ChatDeepSeek
 
-        api_key, base_url, model = _env()
+        api_key, base_url, model = llm_store.resolve_llm_config(user_key or "anonymous")
         if not api_key:
-            raise RuntimeError("未配置 LLM：请在 backend/.env 设置 LLM_API_KEY")
+            raise RuntimeError("未配置对话模型：请在「设置」里配置模型（URL/名称/Key），或在 backend/.env 设置 LLM_API_KEY")
         llm = ChatDeepSeek(model=model, api_key=api_key, base_url=base_url, temperature=0.7, timeout=LLM_TIMEOUT)
         # 数据源解析优先级：本次请求显式指定的 data_source_id（会话绑定的源）
         # > 该会话已绑定的数据源 > 用户「使用中」的数据源 > 环境变量 PG_CONNECTION_STRING。

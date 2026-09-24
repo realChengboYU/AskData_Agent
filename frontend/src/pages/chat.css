@@ -340,6 +340,140 @@
   font-size: 13px;
   color: #2563eb;
 }
+
+/* ===== 设置弹窗（对话模型配置 + 语言） ===== */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 9vh 20px 24px;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(3px);
+  animation: settings-fade 0.16s ease;
+}
+@keyframes settings-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.settings-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 84vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 28px 72px rgba(15, 23, 42, 0.3);
+  animation: settings-rise 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes settings-rise {
+  from { opacity: 0; transform: translateY(14px) scale(0.99); }
+  to { opacity: 1; transform: none; }
+}
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid #eef2f8;
+}
+.settings-head .settings-title {
+  padding: 0;
+  font-size: 16px;
+  font-weight: 650;
+  color: #1e3a8a;
+}
+.settings-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.settings-close:hover { background: #f1f5f9; color: #1f2329; }
+.settings-body {
+  padding: 20px 22px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+}
+.settings-section { display: flex; flex-direction: column; gap: 14px; }
+.settings-section-title { font-size: 13px; font-weight: 650; color: #1f2329; }
+.settings-section-sub { margin: -6px 0 0; font-size: 12.5px; line-height: 1.5; color: #94a3b8; }
+.settings-field { display: flex; flex-direction: column; gap: 7px; }
+.settings-field-label { font-size: 13px; font-weight: 550; color: #334155; }
+.settings-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #dbe2ec;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: #1f2329;
+  background: #fbfcfe;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.settings-input::placeholder { color: #b6c0cd; }
+.settings-input:hover { border-color: #c3cede; }
+.settings-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.13); background: #fff; }
+.settings-input.mono {
+  font-family: "SFMono-Regular", "JetBrains Mono", "Cascadia Code", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 12.5px;
+}
+.settings-test-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 15px;
+  border: none;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.settings-btn:disabled { opacity: 0.6; cursor: default; }
+.settings-btn.ghost { border: 1px solid #dbe2ec; background: #fff; color: #334155; }
+.settings-btn.ghost:hover:not(:disabled) { border-color: #2563eb; color: #2563eb; background: #f5f9ff; }
+.settings-btn.primary { background: #2563eb; color: #fff; }
+.settings-btn.primary:hover:not(:disabled) { background: #1d4ed8; box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28); }
+.settings-test-result { font-size: 12.5px; line-height: 1.4; }
+.settings-test-result.ok { color: #16a34a; }
+.settings-test-result.err { color: #dc2626; }
+.settings-lang { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.settings-lang .lang-opt { border: 1px solid #e5eaf1; background: #fbfcfe; padding: 9px 12px; border-radius: 10px; }
+.settings-lang .lang-opt:hover { background: #eff6ff; }
+.settings-lang .lang-opt.active { border-color: #2563eb; background: #eff6ff; color: #2563eb; }
+.settings-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 16px 22px;
+  border-top: 1px solid #eef2f8;
+}
+.settings-saved-tip {
+  font-size: 13px;
+  color: #16a34a;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.settings-saved-tip.show { opacity: 1; transform: none; }
+
 .chat-logout {
   border: 1px solid #dbeafe;
   background: #fff;
