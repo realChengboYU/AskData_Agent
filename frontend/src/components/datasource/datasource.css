@@ -161,6 +161,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  min-height: 236px;
   padding: 22px 24px 0;
   background: #fff;
   border: 1px solid #e9eff8;
@@ -178,8 +179,9 @@
 .ds-card.active:hover {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16), 0 12px 30px rgba(30, 58, 138, 0.11);
 }
-/* 头部：图标 + 信息，可点击（进入查看表） */
+/* 头部：图标 + 信息，可点击（直接问数）；flex:1 让它在更高的卡片里垂直居中 */
 .ds-card-head {
+  flex: 1;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -273,15 +275,14 @@
 /* 页脚：元信息（表数 + 创建时间）+ 操作按钮 */
 .ds-card-foot {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 14px;
   margin-top: 18px;
-  padding: 13px 0;
+  padding: 14px 0 18px;
   border-top: 1px solid #eef3fb;
 }
 .ds-card-meta {
-  display: inline-flex;
+  display: flex;
   align-items: baseline;
   gap: 6px;
   min-width: 0;
@@ -315,6 +316,50 @@
   align-items: center;
   gap: 6px;
   flex: none;
+}
+.ds-card-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+/* 主操作：直接问数（基于该数据源开启一个新对话） */
+.ds-ask-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+}
+.ds-ask-btn:hover {
+  background: #1d4ed8;
+  box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+}
+.ds-ask-btn:active {
+  transform: translateY(1px);
+}
+.ds-ask-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+.ds-ask-btn .anticon {
+  font-size: 14px;
+}
+.ds-ask-arrow {
+  font-weight: 500;
+  opacity: 0.85;
+  transition: transform 0.15s ease;
+}
+.ds-ask-btn:hover .ds-ask-arrow {
+  transform: translateX(2px);
 }
 .ds-act-btn {
   display: inline-flex;

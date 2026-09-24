@@ -16,6 +16,7 @@ from app.services.pipeline import (
     get_history,
     list_sessions,
     rename_session,
+    set_session_data_source,
 )
 
 router = APIRouter(prefix="/api", tags=["ask"])
@@ -61,6 +62,21 @@ def rename_ask_session(session_id: str, payload: RenameRequest) -> dict:
     """重命名某个会话（自定义标题；空标题回退为首条用户消息）。"""
     ok = rename_session(session_id, payload.title)
     return {"renamed": ok, "session_id": session_id, "title": payload.title or ""}
+
+
+class DataSourceRequest(BaseModel):
+    data_source_id: Optional[str] = None
+
+
+@router.patch("/ask/sessions/{session_id}/datasource")
+def set_session_ds(session_id: str, payload: DataSourceRequest) -> dict:
+    """设置某会话绑定的数据源（传空清除绑定）；供「每次对话只针对一个库 / 会话内切换」使用。"""
+    ok = set_session_data_source(session_id, payload.data_source_id)
+    return {
+        "ok": ok,
+        "session_id": session_id,
+        "data_source_id": payload.data_source_id or None,
+    }
 
 
 @router.get("/ask/sessions/{session_id}/export")

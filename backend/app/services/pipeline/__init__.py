@@ -16,6 +16,7 @@ from app.services.pipeline.runner import (
     list_sessions,
     rename_session,
     run_agent_stream,
+    set_session_data_source,
 )
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "delete_session",
     "rename_session",
     "export_session_markdown",
+    "set_session_data_source",
 ]

@@ -8,6 +8,7 @@ import {
   EyeInvisibleOutlined,
   EyeOutlined,
   LoadingOutlined,
+  MessageOutlined,
   PlusOutlined,
   SearchOutlined,
   TableOutlined,
@@ -797,7 +798,7 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
 }
 
 // 数据源列表
-function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onViewTables, onSetActive, onRemove }) {
+function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onViewTables, onAsk, onSetActive, onRemove }) {
   const { t } = useI18n()
   const [search, setSearch] = useState('')
   if (!loading && sources.length === 0) {
@@ -846,17 +847,17 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                   className="ds-card-head"
                   role="button"
                   tabIndex={0}
-                  aria-label={`${t('ds.viewTables')} · ${s.name}`}
-                  onClick={() => onViewTables(s)}
+                  aria-label={`${t('ds.ask')} · ${s.name}`}
+                  onClick={() => onAsk && onAsk(s.id)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault()
-                      onViewTables(s)
+                      if (onAsk) onAsk(s.id)
                     }
                   }}
                 >
                   <span className="ds-card-icon" aria-hidden="true">
-                    <DbTypeIcon type={s.type || 'postgresql'} size={32} />
+                    <DbTypeIcon type={s.type || 'postgresql'} size={34} />
                   </span>
                   <div className="ds-card-info">
                     <div className="ds-card-namerow">
@@ -870,40 +871,47 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                   </div>
                 </div>
                 <div className="ds-card-foot">
-                  <span className="ds-card-meta">
+                  <div className="ds-card-meta">
                     <span className="ds-card-num">{typeof s.num === 'number' ? s.num : 0}</span>
                     <span className="ds-card-unit">{t('ds.tablesShort')}</span>
                     <span className="ds-card-sep" aria-hidden="true" />
                     <span className="ds-card-time">{fmtDate(s.created_at)}</span>
-                  </span>
-                  <span className="ds-card-actions">
-                    {!active ? (
+                  </div>
+                  <div className="ds-card-actions-row">
+                    <button type="button" className="ds-ask-btn" onClick={() => onAsk && onAsk(s.id)}>
+                      <MessageOutlined />
+                      <span>{t('ds.ask')}</span>
+                      <span className="ds-ask-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <span className="ds-card-actions">
+                      {!active ? (
+                        <button
+                          type="button"
+                          className="ds-act-btn"
+                          disabled={busy === s.id}
+                          title={t('ds.setActive')}
+                          onClick={() => onSetActive(s.id)}
+                        >
+                          <CheckCircleOutlined />
+                        </button>
+                      ) : null}
+                      <button type="button" className="ds-act-btn" title={t('ds.viewTables')} onClick={() => onViewTables(s)}>
+                        <TableOutlined />
+                      </button>
+                      <button type="button" className="ds-act-btn" title={t('ds.edit')} onClick={() => onEdit(s)}>
+                        <EditOutlined />
+                      </button>
                       <button
                         type="button"
-                        className="ds-act-btn"
+                        className="ds-act-btn danger"
                         disabled={busy === s.id}
-                        title={t('ds.setActive')}
-                        onClick={() => onSetActive(s.id)}
+                        title={t('ds.delete')}
+                        onClick={() => onRemove(s)}
                       >
-                        <CheckCircleOutlined />
+                        {busy === s.id ? <LoadingOutlined spin /> : <DeleteOutlined />}
                       </button>
-                    ) : null}
-                    <button type="button" className="ds-act-btn" title={t('ds.viewTables')} onClick={() => onViewTables(s)}>
-                      <TableOutlined />
-                    </button>
-                    <button type="button" className="ds-act-btn" title={t('ds.edit')} onClick={() => onEdit(s)}>
-                      <EditOutlined />
-                    </button>
-                    <button
-                      type="button"
-                      className="ds-act-btn danger"
-                      disabled={busy === s.id}
-                      title={t('ds.delete')}
-                      onClick={() => onRemove(s)}
-                    >
-                      {busy === s.id ? <LoadingOutlined spin /> : <DeleteOutlined />}
-                    </button>
-                  </span>
+                    </span>
+                  </div>
                 </div>
               </article>
             )
@@ -914,7 +922,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
   )
 }
 
-export default function DataSources({ onBackToChat }) {
+export default function DataSources({ onBackToChat, onAsk }) {
   const { t } = useI18n()
   const [sources, setSources] = useState([])
   const [loading, setLoading] = useState(false)
@@ -1076,6 +1084,7 @@ export default function DataSources({ onBackToChat }) {
             onNew={openNew}
             onEdit={openEdit}
             onViewTables={openTables}
+            onAsk={onAsk}
             onSetActive={doSetActive}
             onRemove={remove}
           />

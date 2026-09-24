@@ -57,6 +57,15 @@ export function renameSession(sessionId, title) {
     .then((res) => res.data)
 }
 
+// 设置某会话绑定的数据源（每次对话只针对一个库；会话内可切换）。传空字符串清除绑定。
+export function setSessionDataSource(sessionId, dataSourceId) {
+  return api
+    .patch(`/ask/sessions/${encodeURIComponent(sessionId)}/datasource`, {
+      data_source_id: dataSourceId || null,
+    })
+    .then((res) => res.data)
+}
+
 // 导出某会话为 Markdown 文件（返回 Blob）
 export function exportSession(sessionId) {
   return api

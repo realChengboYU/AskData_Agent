@@ -227,6 +227,7 @@ async def run_agent_stream(
     question: str,
     session_id: Optional[str] = None,
     user_key: Optional[str] = None,
+    data_source_id: Optional[str] = None,
 ) -> AsyncIterator[dict]:
     """流式多轮对话：逐块返回模型 thinking / answer 增量（SSE 事件），并在结束时持久化会话。
 
@@ -267,11 +268,21 @@ async def run_agent_stream(
         if not api_key:
             raise RuntimeError("未配置 LLM：请在 backend/.env 设置 LLM_API_KEY")
         llm = ChatDeepSeek(model=model, api_key=api_key, base_url=base_url, temperature=0.7, timeout=LLM_TIMEOUT)
-        # 优先用该用户在「数据源管理」里标记为「使用中」的数据源（服务端拼接连接串），
-        # 没有则回退到环境变量 PG_CONNECTION_STRING（旧配置）。
+        # 数据源解析优先级：本次请求显式指定的 data_source_id（会话绑定的源）
+        # > 该会话已绑定的数据源 > 用户「使用中」的数据源 > 环境变量 PG_CONNECTION_STRING。
+        # 若本次带了 data_source_id，则同步持久化为该会话的绑定（供刷新 / 后续消息恢复）。
+        db_url = None
         try:
-            db_url = ds.get_active_db_url(user_key or "anonymous") or PG_CONNECTION_STRING
+            target = (data_source_id or get_session_data_source(thread_id) or None)
+            if target:
+                db_url = ds.get_db_url_for(user_key or "anonymous", target)
+            if not db_url:
+                db_url = ds.get_active_db_url(user_key or "anonymous")
+            if data_source_id:
+                set_session_data_source(thread_id, data_source_id)
         except Exception:
+            db_url = None
+        if not db_url:
             db_url = PG_CONNECTION_STRING
         tools = get_sql_tools(llm, db_url=db_url)
         route = route_intent(q, bool(tools), has_recent_result(history))
@@ -417,6 +428,7 @@ async def resume_clarify_stream(
     session_id: Optional[str],
     option_label: str,
     user_key: Optional[str] = None,
+    data_source_id: Optional[str] = None,
 ) -> AsyncIterator[dict]:
     """用户对澄清选择后的流式恢复：把选择写入历史并继续生成。
 
@@ -442,7 +454,7 @@ async def resume_clarify_stream(
         _GRAPH.update_state(config, {"messages": full})
     except Exception:
         pass
-    async for ev in run_agent_stream(f"基于我选择「{label}」，请继续。", session_id, user_key):
+    async for ev in run_agent_stream(f"基于我选择「{label}」，请继续。", session_id, user_key, data_source_id):
         yield ev
 
 
@@ -506,6 +518,7 @@ def list_sessions(limit: int = 50) -> list[dict]:
                     "title": title or "（新会话）",
                     "updated_at": ts,
                     "message_count": len(msgs),
+                    "data_source_id": get_session_data_source(tid),
                 }
             )
         sessions.sort(key=lambda s: (s["updated_at"] or ""), reverse=True)
@@ -545,14 +558,50 @@ def _stored_session_title(session_id: str) -> str:
 
 
 def rename_session(session_id: Optional[str] = None, title: Optional[str] = None) -> bool:
-    """为会话设置自定义标题；空标题清空（回退为首条用户消息）。"""
+    """为会话设置自定义标题；空标题清空（回退为首条用户消息）。保留 data_source_id 等其它元数据。"""
     if not session_id:
         return False
     try:
         from app.services.memory import get_store
-        get_store().put(
-            ("session_meta", "history"), session_id, {"title": (title or "").strip()}
-        )
+        store = get_store()
+        item = store.get(("session_meta", "history"), session_id)
+        val = dict(item.value) if item is not None and isinstance(item.value, dict) else {}
+        val["title"] = (title or "").strip()
+        store.put(("session_meta", "history"), session_id, val)
+        return True
+    except Exception:
+        return False
+
+
+def get_session_data_source(session_id: Optional[str] = None) -> Optional[str]:
+    """读取某会话绑定的数据源 id（存于 session_meta）；没有则返回 None。"""
+    if not session_id:
+        return None
+    try:
+        from app.services.memory import get_store
+        item = get_store().get(("session_meta", "history"), session_id)
+        if item is not None and isinstance(item.value, dict):
+            return str(item.value.get("data_source_id") or "").strip() or None
+    except Exception:
+        pass
+    return None
+
+
+def set_session_data_source(session_id: Optional[str] = None, data_source_id: Optional[str] = None) -> bool:
+    """设置某会话绑定的数据源 id（保留 title 等其它元数据）；传空则清除绑定。"""
+    if not session_id:
+        return False
+    try:
+        from app.services.memory import get_store
+        store = get_store()
+        item = store.get(("session_meta", "history"), session_id)
+        val = dict(item.value) if item is not None and isinstance(item.value, dict) else {}
+        sid = (data_source_id or "").strip() or None
+        if sid:
+            val["data_source_id"] = sid
+        else:
+            val.pop("data_source_id", None)
+        store.put(("session_meta", "history"), session_id, val)
         return True
     except Exception:
         return False

@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AssistantChat from '@/components/assistant-chat'
 import DataSources from './DataSources'
-import { BookOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
+import { BookOutlined, CaretDownOutlined, CheckOutlined, CloseOutlined, DatabaseOutlined, DeleteOutlined, DownloadOutlined, DoubleLeftOutlined, EditOutlined, MessageOutlined, PlusOutlined, PlusSquareOutlined, SearchOutlined, SettingOutlined } from '@ant-design/icons'
 import { LANGS, LANG_LABELS, useI18n } from '../i18n'
-import { deleteSession, exportSession, getHistory, getSessions, renameSession } from '../api'
+import { deleteSession, exportSession, getHistory, getSessions, renameSession, getDataSources, setSessionDataSource } from '../api'
+import pgIcon from '../assets/ds/pg.svg'
 import './chat.css'
 
 function sleep(ms) {
@@ -107,11 +108,71 @@ function SettingsButton() {
   )
 }
 
+// 数据源切换器：每个会话窗口只针对一个库对话，可在此切换（切换会持久化到该会话）
+function DsSwitcher({ value, sources, onChange, t }) {
+  const [open, setOpen] = useState(false)
+  const wrapRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onDoc = (e) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    return () => document.removeEventListener('mousedown', onDoc)
+  }, [open])
+
+  const cur = sources.find((s) => s.id === value)
+  return (
+    <div className="ds-switcher" ref={wrapRef}>
+      <button
+        type="button"
+        className="ds-switcher-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        title={t('ds.switchSource')}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <img className="ds-switcher-ic" src={pgIcon} width={16} height={16} alt="" aria-hidden="true" />
+        <span className="ds-switcher-label">{cur ? cur.name : t('ds.none')}</span>
+        <CaretDownOutlined className={`ds-switcher-caret${open ? ' open' : ''}`} />
+      </button>
+      {open && (
+        <div className="ds-switcher-menu" role="listbox">
+          {sources.length === 0 ? (
+            <div className="ds-switcher-empty">{t('ds.noSource')}</div>
+          ) : (
+            sources.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                role="option"
+                aria-selected={s.id === value}
+                className={`ds-switcher-opt${s.id === value ? ' active' : ''}`}
+                onClick={() => { onChange(s.id); setOpen(false) }}
+              >
+                <span className="ds-switcher-opt-main">{s.name}</span>
+                <span className="ds-switcher-opt-sub">{s.dbname ? `/${s.dbname}` : ''}</span>
+                {s.id === value ? <CheckOutlined className="ds-switcher-opt-check" /> : null}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Chat() {
   const navigate = useNavigate()
   const { t } = useI18n()
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [dsView, setDsView] = useState(false)
+  // 当前会话绑定的数据源 id（每次对话只针对一个库；会话内可切换）
+  const [currentDsId, setCurrentDsId] = useState(null)
+  // 数据源列表（供顶部切换器 / 「使用中」默认）
+  const [dataSources, setDataSources] = useState([])
+  const dsInitializedRef = useRef(false)
   // 当前会话的历史消息（原始后端结构，交给 AssistantChat 转成 UI）
   const [historyMessages, setHistoryMessages] = useState([])
   // 每次历史重新加载都 +1，用作 AssistantChat 的 key 的一部分：
@@ -173,7 +234,16 @@ export default function Chat() {
   // 刷新侧栏「会话列表」
   const refreshSessions = () => {
     getSessions()
-      .then((data) => setSessions((prev) => mergeSessions(prev, data?.sessions ?? [])))
+      .then((data) => {
+        const backend = data?.sessions ?? []
+        setSessions((prev) => mergeSessions(prev, backend))
+        // 仅首次：用后端持久化的绑定初始化当前会话的数据源（不覆盖会话内的手动切换）
+        if (!dsInitializedRef.current) {
+          dsInitializedRef.current = true
+          const cur = backend.find((s) => s.session_id === sessionIdRef.current)
+          setCurrentDsId(cur ? cur.data_source_id || null : null)
+        }
+      })
       .catch(() => setSessions((prev) => mergeSessions(prev, [])))
   }
 
@@ -185,12 +255,14 @@ export default function Chat() {
     loadHistory(sessionIdRef.current)
   }
 
-  // 切换到指定会话：更新 session id，并加载它的历史
+  // 切换到指定会话：更新 session id，并加载它的历史 + 该会话绑定的数据源
   const openSession = (sid) => {
     setDsView(false)
     if (!sid || sid === sessionIdRef.current) return
     sessionIdRef.current = sid
     localStorage.setItem('askdata_session', sid)
+    const found = sessions.find((s) => s.session_id === sid)
+    setCurrentDsId(found ? found.data_source_id || null : null)
     loadHistory(sid)
   }
 
@@ -264,13 +336,19 @@ export default function Chat() {
       .catch(() => {})
   }
 
-  // 挂载时：持久化会话 id，恢复历史消息，并加载侧栏「会话列表」
+  // 挂载时：持久化会话 id，恢复历史消息，加载侧栏「会话列表」
   useEffect(() => {
     localStorage.setItem('askdata_session', sessionIdRef.current)
     loadHistory(sessionIdRef.current)
     refreshSessions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 每次处于对话视图都刷新数据源列表（新建 / 编辑数据源后，切换器保持最新）
+  useEffect(() => {
+    if (!dsView) loadDataSources()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dsView])
 
   function logout() {
     localStorage.removeItem('askdata_token')
@@ -283,11 +361,44 @@ export default function Chat() {
     sessionIdRef.current = makeId()
     localStorage.setItem('askdata_session', sessionIdRef.current)
     setHistoryMessages([])
-    // 直接在列表顶部新增一行（当前空会话），保留其它会话行
+    // 新建会话默认绑定「使用中」的数据源（没有则为空，可在顶部切换器选择）
+    const activeId = dataSources.find((d) => d.is_active)?.id || null
+    setCurrentDsId(activeId)
     setSessions((prev) => [
-      { session_id: sessionIdRef.current, title: '（新会话）', updated_at: '', message_count: 0 },
+      { session_id: sessionIdRef.current, title: '（新会话）', updated_at: '', message_count: 0, data_source_id: activeId },
       ...prev.filter((s) => s.session_id !== sessionIdRef.current),
     ])
+    if (activeId) setSessionDataSource(sessionIdRef.current, activeId)
+  }
+
+  // 从某数据源卡片「直接问数」：新建一个会话并绑定该数据源，然后进入对话视图
+  function newChatWithSource(dsId) {
+    sessionIdRef.current = makeId()
+    localStorage.setItem('askdata_session', sessionIdRef.current)
+    setHistoryMessages([])
+    setDsView(false)
+    setCurrentDsId(dsId || null)
+    setSessions((prev) => [
+      { session_id: sessionIdRef.current, title: '（新会话）', updated_at: '', message_count: 0, data_source_id: dsId || null },
+      ...prev.filter((s) => s.session_id !== sessionIdRef.current),
+    ])
+    if (dsId) setSessionDataSource(sessionIdRef.current, dsId)
+  }
+
+  // 会话内切换数据源：更新本地状态 + 持久化到该会话
+  const switchDs = (dsId) => {
+    if (dsId === currentDsId) return
+    const sid = sessionIdRef.current
+    setCurrentDsId(dsId || null)
+    setSessions((prev) => prev.map((s) => (s.session_id === sid ? { ...s, data_source_id: dsId || null } : s)))
+    if (sid) setSessionDataSource(sid, dsId)
+  }
+
+  // 拉取数据源列表（供顶部切换器 + 「使用中」默认）
+  const loadDataSources = () => {
+    getDataSources()
+      .then((d) => setDataSources(d?.sources ?? []))
+      .catch(() => setDataSources([]))
   }
 
   const user = JSON.parse(localStorage.getItem('askdata_user') || '{}')
@@ -450,6 +561,9 @@ export default function Chat() {
                 AssistantChat 的内部状态（滚动 / 草稿 / 展开的思考 / 进行中的流）得以保留。 */}
             <div className={`chat-view${dsView ? ' hidden' : ''}`}>
               <header className="chat-head">
+                <div className="chat-head-left">
+                  <DsSwitcher value={currentDsId} sources={dataSources} onChange={switchDs} t={t} />
+                </div>
                 <div className="chat-head-right">
                   <span className="chat-user">{user?.name || 'deepdata'}</span>
                   <button className="chat-logout" onClick={logout}>{t('logout')}</button>
@@ -459,6 +573,7 @@ export default function Chat() {
                 <AssistantChat
                   key={`${sessionIdRef.current}:${historyVersion}`}
                   threadId={sessionIdRef.current}
+                  dataSourceId={currentDsId}
                   initialMessages={historyMessages}
                   onFinish={handleRunFinish}
                   onResizeWidth={handleResizeWidth}
@@ -467,7 +582,7 @@ export default function Chat() {
             </div>
             {dsView && (
               <div className="ds-view">
-                <DataSources onBackToChat={() => setDsView(false)} />
+                <DataSources onBackToChat={() => setDsView(false)} onAsk={newChatWithSource} />
               </div>
             )}
           </div>

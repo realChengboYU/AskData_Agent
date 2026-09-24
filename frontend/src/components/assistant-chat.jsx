@@ -137,11 +137,16 @@ export default function AssistantChat({
   initialMessages = [],
   onFinish,
   onResizeWidth,
+  dataSourceId,
 }) {
   const initialState = useMemo(
     () => ({ messages: historyToState(initialMessages), isRunning: false }),
     [initialMessages, threadId],
   )
+
+  // 会话内切换数据源不会触发重挂载（key 不变），用 ref 让 runtime 的稳定回调始终读到最新绑定
+  const dsRef = useRef(dataSourceId)
+  dsRef.current = dataSourceId
 
   const runtime = useAssistantTransportRuntime({
     initialState,
@@ -155,6 +160,7 @@ export default function AssistantChat({
     prepareSendCommandsRequest: (body) => ({
       ...body,
       threadId,
+      dataSourceId: dsRef.current || null,
     }),
     onFinish: () => onFinish?.(),
     onError: () => onFinish?.(),

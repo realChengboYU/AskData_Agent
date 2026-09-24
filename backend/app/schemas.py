@@ -51,6 +51,7 @@ class SessionItem(BaseModel):
     title: str = "（新会话）"
     updated_at: Optional[str] = None
     message_count: int = 0
+    data_source_id: Optional[str] = None
 
 
 class SessionsResponse(BaseModel):

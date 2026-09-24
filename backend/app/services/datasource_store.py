@@ -271,6 +271,20 @@ def set_active(source_id: str, user_key: str) -> bool:
     return False
 
 
+def get_db_url_for(user_key: str, source_id: str) -> Optional[str]:
+    """返回该用户指定数据源（按 id）的 PG 连接串；不存在则返回 None。
+
+    供「某会话绑定某个数据源」时按 id 取连接串（不依赖 is_active 标记）。
+    """
+    src = get_source(source_id, user_key)
+    if not src:
+        return None
+    return build_pg_url(
+        src["host"], src["port"], src["dbname"], src["username"],
+        src.get("password") or "", ssl=bool(src.get("ssl")),
+    )
+
+
 def get_active_db_url(user_key: str) -> Optional[str]:
     """返回该用户「使用中」数据源的 PG 连接串；没有则返回 None。"""
     _ensure_table()
