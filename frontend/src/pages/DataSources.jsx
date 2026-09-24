@@ -839,11 +839,11 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
         <div className="ds-list">
           {shown.map((s) => {
             const active = s.id === activeId
-            const desc = s.description || `${s.dbname || ''}@${s.host || ''}:${s.port || ''}`
+            const conn = `${s.username ? `${s.username}@` : ''}${s.host}:${s.port}/${s.dbname}`
             return (
               <article key={s.id} className={`ds-card${active ? ' active' : ''}`}>
                 <div
-                  className="ds-card-open"
+                  className="ds-card-head"
                   role="button"
                   tabIndex={0}
                   aria-label={`${t('ds.viewTables')} · ${s.name}`}
@@ -856,44 +856,55 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                   }}
                 >
                   <span className="ds-card-icon" aria-hidden="true">
-                    <DbTypeIcon type={s.type || 'postgresql'} size={28} />
+                    <DbTypeIcon type={s.type || 'postgresql'} size={32} />
                   </span>
-                  <div className="ds-card-body">
-                    <div className="ds-card-name">{s.name}</div>
-                    <div className="ds-card-type">PostgreSQL</div>
-                    <div className="ds-card-desc">{desc}</div>
-                    <div className="ds-card-time">{fmtDate(s.created_at)}</div>
+                  <div className="ds-card-info">
+                    <div className="ds-card-namerow">
+                      <span className="ds-card-name">{s.name}</span>
+                      {active ? <span className="ds-card-status">{t('ds.active')}</span> : null}
+                    </div>
+                    <span className="ds-card-type">
+                      PostgreSQL{s.schema && s.schema !== 'public' ? ` · ${s.schema}` : ''}
+                    </span>
+                    <code className="ds-card-conn">{conn}</code>
                   </div>
                 </div>
-                {active ? <span className="ds-card-status">{t('ds.active')}</span> : null}
-                <span className="ds-card-actions" onClick={(e) => e.stopPropagation()}>
-                  {!active ? (
+                <div className="ds-card-foot">
+                  <span className="ds-card-meta">
+                    <span className="ds-card-num">{typeof s.num === 'number' ? s.num : 0}</span>
+                    <span className="ds-card-unit">{t('ds.tablesShort')}</span>
+                    <span className="ds-card-sep" aria-hidden="true" />
+                    <span className="ds-card-time">{fmtDate(s.created_at)}</span>
+                  </span>
+                  <span className="ds-card-actions">
+                    {!active ? (
+                      <button
+                        type="button"
+                        className="ds-act-btn"
+                        disabled={busy === s.id}
+                        title={t('ds.setActive')}
+                        onClick={() => onSetActive(s.id)}
+                      >
+                        <CheckCircleOutlined />
+                      </button>
+                    ) : null}
+                    <button type="button" className="ds-act-btn" title={t('ds.viewTables')} onClick={() => onViewTables(s)}>
+                      <TableOutlined />
+                    </button>
+                    <button type="button" className="ds-act-btn" title={t('ds.edit')} onClick={() => onEdit(s)}>
+                      <EditOutlined />
+                    </button>
                     <button
                       type="button"
-                      className="ds-act-btn"
+                      className="ds-act-btn danger"
                       disabled={busy === s.id}
-                      title={t('ds.setActive')}
-                      onClick={() => onSetActive(s.id)}
+                      title={t('ds.delete')}
+                      onClick={() => onRemove(s)}
                     >
-                      <CheckCircleOutlined />
+                      {busy === s.id ? <LoadingOutlined spin /> : <DeleteOutlined />}
                     </button>
-                  ) : null}
-                  <button type="button" className="ds-act-btn" title={t('ds.viewTables')} onClick={() => onViewTables(s)}>
-                    <TableOutlined />
-                  </button>
-                  <button type="button" className="ds-act-btn primary" title={t('ds.edit')} onClick={() => onEdit(s)}>
-                    <EditOutlined />
-                  </button>
-                  <button
-                    type="button"
-                    className="ds-act-btn danger"
-                    disabled={busy === s.id}
-                    title={t('ds.delete')}
-                    onClick={() => onRemove(s)}
-                  >
-                    {busy === s.id ? <LoadingOutlined spin /> : <DeleteOutlined />}
-                  </button>
-                </span>
+                  </span>
+                </div>
               </article>
             )
           })}

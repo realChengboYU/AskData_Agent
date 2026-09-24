@@ -153,30 +153,33 @@
 }
 .ds-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(460px, 1fr));
+  gap: 22px;
 }
-/* 卡片：横向布局（左侧类型图标 + 右侧文字堆叠），静止即有极浅投影，悬停提亮 */
+/* 卡片：图标 + 信息在上，元信息 + 操作在下的页脚；更大、更有信息量 */
 .ds-card {
   position: relative;
-  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 24px 0;
   background: #fff;
-  border: 1px solid #eef2f8;
-  border-radius: 16px;
+  border: 1px solid #e9eff8;
+  border-radius: 18px;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .ds-card:hover {
-  border-color: #dce6f5;
-  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.1);
+  border-color: #cfe0f6;
+  box-shadow: 0 12px 30px rgba(30, 58, 138, 0.11);
 }
 .ds-card.active {
-  border-color: #b9d2fb;
+  border-color: #9cc0f7;
 }
 .ds-card.active:hover {
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16), 0 8px 24px rgba(30, 58, 138, 0.1);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16), 0 12px 30px rgba(30, 58, 138, 0.11);
 }
-.ds-card-open {
+/* 头部：图标 + 信息，可点击（进入查看表） */
+.ds-card-head {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -184,12 +187,11 @@
   border: none;
   background: none;
   cursor: pointer;
-  width: 100%;
   text-align: left;
 }
-.ds-card-open:focus-visible {
+.ds-card-head:focus-visible {
   outline: 2px solid #2563eb;
-  outline-offset: 4px;
+  outline-offset: 3px;
   border-radius: 12px;
 }
 .ds-card-icon {
@@ -197,12 +199,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
   background: #eef4ff;
   color: #1e3a8a;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: background 0.2s ease;
 }
 .ds-card:hover .ds-card-icon {
   background: #dcebff;
@@ -211,43 +213,46 @@
   background: #dbeafe;
   box-shadow: inset 0 0 0 1.5px rgba(37, 99, 235, 0.4);
 }
-.ds-card-body {
+.ds-card-info {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  gap: 5px;
+}
+.ds-card-namerow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 .ds-card-name {
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.3;
+  flex: 1;
+  min-width: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
   color: #1e3a8a;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 .ds-card-type {
-  font-size: 13.5px;
+  font-size: 13px;
   color: #64748b;
 }
-.ds-card-desc {
-  font-size: 13.5px;
+.ds-card-conn {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12.5px;
   color: #94a3b8;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
-.ds-card-time {
-  font-size: 12.5px;
-  color: #b6c2d6;
-}
-/* 「使用中」状态角标（右上，绿色） */
+/* 「使用中」状态角标（名称行右侧，绿色） */
 .ds-card-status {
-  position: absolute;
-  top: 14px;
-  right: 16px;
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -265,23 +270,51 @@
   border-radius: 50%;
   background: #16a34a;
 }
-/* 操作：悬停浮现的圆形按钮（查看表 / 编辑 / 删除 / 设为使用中） */
-.ds-card-actions {
-  position: absolute;
-  right: 16px;
-  bottom: 14px;
+/* 页脚：元信息（表数 + 创建时间）+ 操作按钮 */
+.ds-card-foot {
   display: flex;
-  gap: 6px;
-  opacity: 0;
-  transform: translateY(4px);
-  pointer-events: none;
-  transition: opacity 0.18s ease, transform 0.18s ease;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 13px 0;
+  border-top: 1px solid #eef3fb;
 }
-.ds-card:hover .ds-card-actions,
-.ds-card:focus-within .ds-card-actions {
-  opacity: 1;
-  transform: none;
-  pointer-events: auto;
+.ds-card-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+.ds-card-num {
+  font-family: 'Geist Variable', system-ui, sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #1e3a8a;
+  font-variant-numeric: tabular-nums;
+}
+.ds-card-unit {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.ds-card-sep {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: #cbd5e1;
+  align-self: center;
+  margin: 0 2px;
+}
+.ds-card-time {
+  font-size: 12.5px;
+  color: #b6c2d6;
+}
+.ds-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
 }
 .ds-act-btn {
   display: inline-flex;
@@ -291,28 +324,22 @@
   height: 30px;
   border: none;
   border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
-  color: #64748b;
+  background: transparent;
+  color: #94a3b8;
   font-size: 14px;
   cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 .ds-act-btn:hover:not(:disabled) {
   color: #2563eb;
   background: #eef4ff;
-  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18);
-}
-.ds-act-btn.primary {
-  color: #2563eb;
 }
 .ds-act-btn.danger:hover:not(:disabled) {
   color: #ef4444;
   background: #fef2f2;
-  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.16);
 }
 .ds-act-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: default;
 }
 .ds-act-btn:focus-visible {
