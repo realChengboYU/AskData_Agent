@@ -878,11 +878,6 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                     <span className="ds-card-time">{fmtDate(s.created_at)}</span>
                   </div>
                   <div className="ds-card-actions-row">
-                    <button type="button" className="ds-ask-btn" onClick={() => onAsk && onAsk(s.id)}>
-                      <MessageOutlined />
-                      <span>{t('ds.ask')}</span>
-                      <span className="ds-ask-arrow" aria-hidden="true">→</span>
-                    </button>
                     <span className="ds-card-actions">
                       {!active ? (
                         <button
@@ -911,6 +906,11 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                         {busy === s.id ? <LoadingOutlined spin /> : <DeleteOutlined />}
                       </button>
                     </span>
+                    <button type="button" className="ds-ask-btn" onClick={() => onAsk && onAsk(s.id)}>
+                      <MessageOutlined />
+                      <span>{t('ds.ask')}</span>
+                      <span className="ds-ask-arrow" aria-hidden="true">→</span>
+                    </button>
                   </div>
                 </div>
               </article>
