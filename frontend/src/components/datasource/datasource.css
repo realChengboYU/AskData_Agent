@@ -101,331 +101,223 @@
 .ds-listwrap {
   padding-top: 2px;
 }
-.ds-pagehead {
+/* 工具条：搜索（左）+ 新建（右），对齐 SQLBot 数据源页头 */
+.ds-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 16px;
-}
-.ds-pagehead-sub {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #64748b;
-}
-/* 概览条：数据源全景（信息层级，页面开场）*/
-.ds-overview {
-  display: flex;
-  align-items: stretch;
-  border: 1px solid #e6eefb;
-  border-radius: 12px;
+  padding: 13px 16px;
   background: #fff;
-  margin-bottom: 18px;
-  overflow: hidden;
+  border-radius: 14px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  margin-bottom: 20px;
 }
-.ds-ov {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 5px;
-  padding: 15px 18px;
-  min-width: 0;
-}
-.ds-ov + .ds-ov {
-  border-left: 1px solid #eef3fb;
-}
-.ds-ov-num {
-  font-family: 'Geist Variable', system-ui, sans-serif;
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.02em;
-  color: #1e3a8a;
-  font-variant-numeric: tabular-nums;
-}
-.ds-ov-label {
-  font-size: 12px;
-  color: #94a3b8;
-}
-.ds-ov-name {
+.ds-toolbar-search {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
+  max-width: 320px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border: 1px solid #e6edf5;
+  border-radius: 9px;
+  color: #94a3b8;
+  font-size: 14px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.ds-toolbar-search:focus-within {
+  background: #fff;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+.ds-toolbar-search input {
+  flex: 1;
   min-width: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: #1e3a8a;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #334155;
 }
-.ds-ov-dot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
+.ds-toolbar-search input::placeholder {
+  color: #94a3b8;
 }
-.ds-ov-none {
-  font-size: 15px;
-  font-weight: 600;
-  color: #cbd5e1;
+.ds-nomatch {
+  margin: 0;
+  padding: 48px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
 }
 .ds-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 24px;
 }
+/* 卡片：横向布局（左侧类型图标 + 右侧文字堆叠），静止即有极浅投影，悬停提亮 */
 .ds-card {
-  display: flex;
-  flex-direction: column;
-  padding: 16px 16px 0;
+  position: relative;
+  padding: 24px 20px;
   background: #fff;
-  border: 1px solid #e6eefb;
-  border-radius: 14px;
-  transition:
-    border-color 0.18s ease,
-    background 0.18s ease,
-    box-shadow 0.18s ease,
-    transform 0.18s ease;
+  border: 1px solid #eef2f8;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .ds-card:hover {
-  border-color: #9ec2f5;
-  background: #fcfdff;
-  transform: translateY(-3px);
-  box-shadow: 0 10px 26px rgba(30, 58, 138, 0.1);
+  border-color: #dce6f5;
+  box-shadow: 0 8px 24px rgba(30, 58, 138, 0.1);
 }
 .ds-card.active {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: #b9d2fb;
 }
 .ds-card.active:hover {
-  background: #f7faff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14), 0 10px 26px rgba(30, 58, 138, 0.1);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.16), 0 8px 24px rgba(30, 58, 138, 0.1);
 }
 .ds-card-open {
-  display: block;
-  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
   padding: 0;
   border: none;
-  background: transparent;
-  text-align: left;
+  background: none;
   cursor: pointer;
+  width: 100%;
+  text-align: left;
 }
 .ds-card-open:focus-visible {
   outline: 2px solid #2563eb;
-  outline-offset: 2px;
+  outline-offset: 4px;
   border-radius: 12px;
 }
-.ds-card-top {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-.ds-card-glyph {
+.ds-card-icon {
   flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
+  width: 48px;
+  height: 48px;
   border-radius: 10px;
-  background: #eff6ff;
+  background: #eef4ff;
   color: #1e3a8a;
-  transition: background 0.18s ease, color 0.18s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
-.ds-card:hover .ds-card-glyph {
-  background: #dbeafe;
+.ds-card:hover .ds-card-icon {
+  background: #dcebff;
 }
-.ds-card.active .ds-card-glyph {
+.ds-card.active .ds-card-icon {
   background: #2563eb;
   color: #fff;
 }
-.ds-card-name {
+.ds-card-body {
   flex: 1;
   min-width: 0;
-  font-size: 15.5px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
-  color: #1e3a8a;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.ds-card-conn {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 4px;
-  margin-top: 14px;
-  padding: 9px 12px;
-  background: #f7f9fd;
-  border-left: 3px solid #c7d8f5;
-  border-radius: 0 10px 10px 0;
 }
-.ds-card.active .ds-card-conn {
-  border-left-color: #2563eb;
-}
-.ds-card-host {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 12.5px;
+.ds-card-name {
+  font-size: 18px;
   font-weight: 600;
-  color: #334155;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.ds-card-db {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-.ds-card-dbname {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 11px;
-  color: #94a3b8;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-.ds-card-sch {
-  flex: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 10px;
-  font-weight: 500;
-  color: #64748b;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #eef2f8;
-}
-.ds-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  margin-top: 14px;
-}
-.ds-card-num {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 5px;
-  font-family: 'Geist Variable', system-ui, sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  line-height: 1.3;
   color: #1e3a8a;
-  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
-.ds-card-num small {
-  font-size: 11.5px;
-  font-weight: 500;
-  letter-spacing: 0;
-  color: #94a3b8;
-}
-.ds-card-flag {
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: #eff6ff;
-  border: 1px solid #dbeafe;
-  color: #2563eb;
-  font-size: 10.5px;
-  font-weight: 600;
+.ds-card-type {
+  font-size: 13.5px;
+  color: #64748b;
 }
 .ds-card-desc {
-  margin: 10px 0 0;
-  font-size: 12px;
-  line-height: 1.45;
-  color: #64748b;
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
+  font-size: 13.5px;
+  color: #94a3b8;
   overflow: hidden;
-}
-.ds-card-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 16px;
-  padding: 12px 0;
-  border-top: 1px solid #eef3fb;
-}
-.ds-card-use {
-  border: none;
-  background: transparent;
-  color: #2563eb;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 4px 6px;
-  border-radius: 7px;
-  cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease;
+  text-overflow: ellipsis;
 }
-.ds-card-use:hover:not(:disabled) {
-  background: #eef4ff;
+.ds-card-time {
+  font-size: 12.5px;
+  color: #b6c2d6;
 }
-.ds-card-use:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
-}
-.ds-card-use:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.ds-card-ineuse {
+/* 「使用中」状态角标（右上，绿色） */
+.ds-card-status {
+  position: absolute;
+  top: 14px;
+  right: 16px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #e6f4ea;
   color: #16a34a;
+  font-size: 11.5px;
+  font-weight: 600;
 }
-.ds-card-ineuse::before {
+.ds-card-status::before {
   content: '';
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.14);
 }
-.ds-card-acts {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
+/* 操作：悬停浮现的圆形按钮（查看表 / 编辑 / 删除 / 设为使用中） */
+.ds-card-actions {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  gap: 6px;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
 }
-.ds-act {
+.ds-card:hover .ds-card-actions,
+.ds-card:focus-within .ds-card-actions {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+.ds-act-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 27px;
-  height: 27px;
+  width: 30px;
+  height: 30px;
   border: none;
-  border-radius: 7px;
-  background: transparent;
-  color: #94a3b8;
-  font-size: 13px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.14);
+  color: #64748b;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
 }
-.ds-act:hover:not(:disabled) {
+.ds-act-btn:hover:not(:disabled) {
+  color: #2563eb;
   background: #eef4ff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.18);
+}
+.ds-act-btn.primary {
   color: #2563eb;
 }
-.ds-act:focus-visible {
-  outline: 2px solid #2563eb;
-  outline-offset: 2px;
+.ds-act-btn.danger:hover:not(:disabled) {
+  color: #ef4444;
+  background: #fef2f2;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.16);
 }
-.ds-act:disabled {
+.ds-act-btn:disabled {
   opacity: 0.5;
   cursor: default;
 }
-.ds-act-del:hover {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+.ds-act-btn:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
 }
 
 /* ---- 空态 ---- */

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   CheckCircleFilled,
+  CheckCircleOutlined,
   CloseOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -9,6 +10,7 @@ import {
   LoadingOutlined,
   PlusOutlined,
   SearchOutlined,
+  TableOutlined,
   ThunderboltOutlined,
 } from '@ant-design/icons'
 import { useI18n } from '../i18n'
@@ -23,7 +25,6 @@ import {
   introspectTables,
   saveCuratedTables,
   setDataSourceActive,
-  testDataSource,
   testDataSourceRaw,
   updateDataSource,
 } from '../api'
@@ -45,6 +46,17 @@ function connPreview(host, port, dbname, username, hasPassword, hasSsl) {
   const pw = hasPassword ? '••••••••' : '······'
   const ssl = hasSsl ? '?sslmode=require' : ''
   return `postgresql+psycopg://${u}:${pw}@${h}:${p}/${db}${ssl}`
+}
+
+// 卡片展示用：ISO 时间 → YYYY-MM-DD
+function fmtDate(iso) {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 const EMPTY = {
@@ -786,8 +798,9 @@ function TableSelectStep({ sourceId, onSaved, onCancel, onPrev, onError }) {
 }
 
 // 数据源列表
-function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSetActive, onTest, onRemove }) {
+function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onViewTables, onSetActive, onRemove }) {
   const { t } = useI18n()
+  const [search, setSearch] = useState('')
   if (!loading && sources.length === 0) {
     return (
       <div className="ds-empty dsrc-empty">
@@ -802,117 +815,91 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
       </div>
     )
   }
-  const totalTables = sources.reduce((a, s) => a + (typeof s.num === 'number' ? s.num : 0), 0)
-  const activeSrc = sources.find((s) => s.is_active) ?? null
+  const kw = search.trim().toLowerCase()
+  const shown = kw ? sources.filter((s) => (s.name || '').toLowerCase().includes(kw)) : sources
 
   return (
     <div className="ds-listwrap">
-      <div className="ds-pagehead">
-        <p className="ds-pagehead-sub">{t('ds.sub')}</p>
-        <button type="button" className="ds-btn ds-btn-primary ds-btn-sm" onClick={onNew}>
+      <div className="ds-toolbar">
+        <label className="ds-toolbar-search">
+          <SearchOutlined />
+          <input
+            value={search}
+            placeholder={t('ds.searchDs')}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </label>
+        <button type="button" className="ds-btn ds-btn-primary" onClick={onNew}>
           <PlusOutlined /> {t('ds.new')}
         </button>
       </div>
 
-      <div className="ds-overview" role="group" aria-label={t('ds.title')}>
-        <div className="ds-ov">
-          <span className="ds-ov-num">{sources.length}</span>
-          <span className="ds-ov-label">{t('ds.ovSources')}</span>
-        </div>
-        <div className="ds-ov">
-          <span className="ds-ov-num">{totalTables}</span>
-          <span className="ds-ov-label">{t('ds.ovTables')}</span>
-        </div>
-        <div className="ds-ov">
-          {activeSrc ? (
-            <span className="ds-ov-name">
-              <i className="ds-ov-dot" aria-hidden="true" />
-              {activeSrc.name}
-            </span>
-          ) : (
-            <span className="ds-ov-none">{t('ds.ovNone')}</span>
-          )}
-          <span className="ds-ov-label">{t('ds.active')}</span>
-        </div>
-      </div>
-
-      <div className="ds-list">
-        {sources.map((s) => {
-          const active = s.id === activeId
-          return (
-            <article key={s.id} className={`ds-card${active ? ' active' : ''}`}>
-              <div
-                className="ds-card-open"
-                role="button"
-                tabIndex={0}
-                aria-label={`${t('ds.edit')} · ${s.name}`}
-                onClick={() => onEdit(s)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    onEdit(s)
-                  }
-                }}
-              >
-                <div className="ds-card-top">
-                  <span className="ds-card-glyph" aria-hidden="true">
-                    <DatabaseGlyph size={18} />
+      {shown.length === 0 ? (
+        <p className="ds-nomatch">{t('ds.noMatch')}</p>
+      ) : (
+        <div className="ds-list">
+          {shown.map((s) => {
+            const active = s.id === activeId
+            const desc = s.description || `${s.dbname || ''}@${s.host || ''}:${s.port || ''}`
+            return (
+              <article key={s.id} className={`ds-card${active ? ' active' : ''}`}>
+                <div
+                  className="ds-card-open"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`${t('ds.viewTables')} · ${s.name}`}
+                  onClick={() => onViewTables(s)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onViewTables(s)
+                    }
+                  }}
+                >
+                  <span className="ds-card-icon" aria-hidden="true">
+                    <DatabaseGlyph size={26} />
                   </span>
-                  <span className="ds-card-name">{s.name}</span>
+                  <div className="ds-card-body">
+                    <div className="ds-card-name">{s.name}</div>
+                    <div className="ds-card-type">PostgreSQL</div>
+                    <div className="ds-card-desc">{desc}</div>
+                    <div className="ds-card-time">{fmtDate(s.created_at)}</div>
+                  </div>
                 </div>
-                <div className="ds-card-conn">
-                  <span className="ds-card-host">
-                    {s.host}:{s.port}
-                  </span>
-                  <span className="ds-card-db">
-                    <span className="ds-card-dbname">{s.dbname}</span>
-                    {s.schema && s.schema !== 'public' ? <span className="ds-card-sch">{s.schema}</span> : null}
-                  </span>
-                </div>
-                <div className="ds-card-meta">
-                  <span className="ds-card-num">
-                    {typeof s.num === 'number' ? s.num : 0}
-                    <small>{t('ds.tablesShort')}</small>
-                  </span>
-                  {s.ssl ? <span className="ds-card-flag">SSL</span> : null}
-                </div>
-                {s.description ? <p className="ds-card-desc">{s.description}</p> : null}
-              </div>
-              <div className="ds-card-foot">
-                {active ? (
-                  <span className="ds-card-ineuse">{t('ds.active')}</span>
-                ) : (
-                  <button
-                    type="button"
-                    className="ds-card-use"
-                    disabled={busy === s.id}
-                    onClick={() => onSetActive(s.id)}
-                  >
-                    {t('ds.setActive')}
+                {active ? <span className="ds-card-status">{t('ds.active')}</span> : null}
+                <span className="ds-card-actions" onClick={(e) => e.stopPropagation()}>
+                  {!active ? (
+                    <button
+                      type="button"
+                      className="ds-act-btn"
+                      disabled={busy === s.id}
+                      title={t('ds.setActive')}
+                      onClick={() => onSetActive(s.id)}
+                    >
+                      <CheckCircleOutlined />
+                    </button>
+                  ) : null}
+                  <button type="button" className="ds-act-btn" title={t('ds.viewTables')} onClick={() => onViewTables(s)}>
+                    <TableOutlined />
                   </button>
-                )}
-                <span className="ds-card-acts">
-                  <button
-                    type="button"
-                    className="ds-act"
-                    disabled={busy === s.id}
-                    onClick={() => onTest(s.id)}
-                    title={t('ds.test')}
-                  >
-                    {busy === s.id ? <LoadingOutlined spin /> : <ThunderboltOutlined />}
-                  </button>
-                  <button type="button" className="ds-act" onClick={() => onEdit(s)} title={t('ds.edit')}>
+                  <button type="button" className="ds-act-btn primary" title={t('ds.edit')} onClick={() => onEdit(s)}>
                     <EditOutlined />
                   </button>
-                  <button type="button" className="ds-act ds-act-del" onClick={() => onRemove(s)} title={t('ds.delete')}>
-                    <DeleteOutlined />
+                  <button
+                    type="button"
+                    className="ds-act-btn danger"
+                    disabled={busy === s.id}
+                    title={t('ds.delete')}
+                    onClick={() => onRemove(s)}
+                  >
+                    {busy === s.id ? <LoadingOutlined spin /> : <DeleteOutlined />}
                   </button>
                 </span>
-              </div>
-            </article>
-          )
-        })}
-      </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -1002,6 +989,15 @@ export default function DataSources({ onBackToChat }) {
     setNewStep('form')
     setView('edit')
   }
+  // 卡片「查看表」：直接进入选表/管理步
+  const openTables = (s) => {
+    setEditing(s)
+    setCurrentId(s.id)
+    setFreshCreated(false)
+    setTestMsg('')
+    setNewStep('tables')
+    setView('edit')
+  }
 
   // 表单「下一步」成功（已测试连通 + 已创建/更新源）→ 进入选表步
   const handleFormNext = (id, created) => {
@@ -1038,18 +1034,6 @@ export default function DataSources({ onBackToChat }) {
       .finally(() => setBusy(''))
   }
 
-  const doTest = (id) => {
-    setBusy(id)
-    testDataSource(id)
-      .then((r) => {
-        const src = sources.find((x) => x.id === id)
-        setTestMsg(`${src?.name}: ${r.message}`)
-        setTimeout(() => setTestMsg(''), 4000)
-      })
-      .catch(() => {})
-      .finally(() => setBusy(''))
-  }
-
   const backToLabel =
     (view === 'new' && newStep === 'type') || (view === 'edit' && newStep === 'form')
       ? t('ds.backTo')
@@ -1081,8 +1065,8 @@ export default function DataSources({ onBackToChat }) {
             loading={loading}
             onNew={openNew}
             onEdit={openEdit}
+            onViewTables={openTables}
             onSetActive={doSetActive}
-            onTest={doTest}
             onRemove={remove}
           />
         )}
