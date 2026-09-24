@@ -67,10 +67,10 @@
   font-size: 11.5px;
   font-weight: 600;
 }
-.dsrc-topbar-badge svg {
-  width: 15px;
-  height: 15px;
-  color: #2563eb;
+.dsrc-topbar-badge img {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 .dsrc-container {
@@ -208,8 +208,8 @@
   background: #dcebff;
 }
 .ds-card.active .ds-card-icon {
-  background: #2563eb;
-  color: #fff;
+  background: #dbeafe;
+  box-shadow: inset 0 0 0 1.5px rgba(37, 99, 235, 0.4);
 }
 .ds-card-body {
   flex: 1;
@@ -471,6 +471,10 @@
 .dsrc-type-glyph.soon {
   background: #f1f5f9;
   color: #94a3b8;
+}
+.dsrc-type-glyph.soon img {
+  filter: grayscale(1);
+  opacity: 0.5;
 }
 .dsrc-type-body {
   display: flex;

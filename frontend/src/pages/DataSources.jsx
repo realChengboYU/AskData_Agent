@@ -29,6 +29,9 @@ import {
   updateDataSource,
 } from '../api'
 import '../components/datasource/datasource.css'
+import pgIcon from '../assets/ds/pg.svg'
+import mysqlIcon from '../assets/ds/mysql.svg'
+import sqliteIcon from '../assets/ds/sqlite.svg'
 
 // 数据库类型（当前只支持 PostgreSQL，其余为占位，供后续扩展）
 const DB_TYPES = [
@@ -64,14 +67,10 @@ const EMPTY = {
   schema: 'public', timeout: 6, pool_size: 5, ssl: false,
 }
 
-function DatabaseGlyph({ size = 44 }) {
-  return (
-    <svg viewBox="0 0 48 48" width={size} height={size} fill="none" aria-hidden="true">
-      <ellipse cx="24" cy="12" rx="15" ry="6" stroke="currentColor" strokeWidth="2.4" />
-      <path d="M9 12v24c0 3.3 6.7 6 15 6s15-2.7 15-6V12" stroke="currentColor" strokeWidth="2.4" />
-      <path d="M9 24c0 3.3 6.7 6 15 6s15-2.7 15-6" stroke="currentColor" strokeWidth="2.4" opacity="0.55" />
-    </svg>
-  )
+// 各数据库品牌图标（按类型选用，取代通用圆柱体）
+const DB_ICONS = { postgresql: pgIcon, mysql: mysqlIcon, sqlite: sqliteIcon }
+function DbTypeIcon({ type = 'postgresql', size = 24, className }) {
+  return <img src={DB_ICONS[type] || pgIcon} width={size} height={size} className={className} alt="" aria-hidden="true" />
 }
 
 // 第 1 步：选择数据库类型
@@ -99,7 +98,7 @@ function TypeSelectStep({ onPick }) {
               onClick={() => tp.available && setSel(tp.id)}
             >
               <span className={`dsrc-type-glyph${tp.available ? '' : ' soon'}`} aria-hidden="true">
-                <DatabaseGlyph size={30} />
+                <DbTypeIcon type={tp.id} size={30} />
               </span>
               <span className="dsrc-type-body">
                 <span className="dsrc-type-name">{tp.name}</span>
@@ -805,7 +804,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
     return (
       <div className="ds-empty dsrc-empty">
         <div className="ds-empty-mark" aria-hidden="true">
-          <DatabaseGlyph />
+          <DbTypeIcon type="postgresql" size={40} />
         </div>
         <p className="ds-empty-title">{t('ds.emptyTitle')}</p>
         <p className="ds-empty-sub">{t('ds.emptySub')}</p>
@@ -857,7 +856,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                   }}
                 >
                   <span className="ds-card-icon" aria-hidden="true">
-                    <DatabaseGlyph size={26} />
+                    <DbTypeIcon type={s.type || 'postgresql'} size={28} />
                   </span>
                   <div className="ds-card-body">
                     <div className="ds-card-name">{s.name}</div>
@@ -1050,7 +1049,7 @@ export default function DataSources({ onBackToChat }) {
         )}
         <span className="dsrc-topbar-title">{title}</span>
         <span className="dsrc-topbar-badge">
-          <DatabaseGlyph size={15} /> PostgreSQL
+          <DbTypeIcon type="postgresql" size={16} /> PostgreSQL
         </span>
       </header>
 
