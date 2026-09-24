@@ -857,7 +857,7 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onVie
                   }}
                 >
                   <span className="ds-card-icon" aria-hidden="true">
-                    <DbTypeIcon type={s.type || 'postgresql'} size={42} />
+                    <DbTypeIcon type={s.type || 'postgresql'} size={52} />
                   </span>
                   <div className="ds-card-info">
                     <div className="ds-card-namerow">
