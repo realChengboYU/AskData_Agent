@@ -802,14 +802,40 @@ function DataSourceList({ sources, activeId, busy, loading, onNew, onEdit, onSet
       </div>
     )
   }
+  const totalTables = sources.reduce((a, s) => a + (typeof s.num === 'number' ? s.num : 0), 0)
+  const activeSrc = sources.find((s) => s.is_active) ?? null
+
   return (
     <div className="ds-listwrap">
-      <div className="ds-list-head">
-        <span className="ds-list-count">{t('ds.yours', { n: sources.length })}</span>
+      <div className="ds-pagehead">
+        <p className="ds-pagehead-sub">{t('ds.sub')}</p>
         <button type="button" className="ds-btn ds-btn-primary ds-btn-sm" onClick={onNew}>
           <PlusOutlined /> {t('ds.new')}
         </button>
       </div>
+
+      <div className="ds-overview" role="group" aria-label={t('ds.title')}>
+        <div className="ds-ov">
+          <span className="ds-ov-num">{sources.length}</span>
+          <span className="ds-ov-label">{t('ds.ovSources')}</span>
+        </div>
+        <div className="ds-ov">
+          <span className="ds-ov-num">{totalTables}</span>
+          <span className="ds-ov-label">{t('ds.ovTables')}</span>
+        </div>
+        <div className="ds-ov">
+          {activeSrc ? (
+            <span className="ds-ov-name">
+              <i className="ds-ov-dot" aria-hidden="true" />
+              {activeSrc.name}
+            </span>
+          ) : (
+            <span className="ds-ov-none">{t('ds.ovNone')}</span>
+          )}
+          <span className="ds-ov-label">{t('ds.active')}</span>
+        </div>
+      </div>
+
       <div className="ds-list">
         {sources.map((s) => {
           const active = s.id === activeId
@@ -1048,20 +1074,17 @@ export default function DataSources({ onBackToChat }) {
         {testMsg && <div className="ds-bannertest">{testMsg}</div>}
 
         {view === 'list' && (
-          <>
-            <p className="dsrc-sub">{t('ds.sub')}</p>
-            <DataSourceList
-              sources={sources}
-              activeId={activeId}
-              busy={busy}
-              loading={loading}
-              onNew={openNew}
-              onEdit={openEdit}
-              onSetActive={doSetActive}
-              onTest={doTest}
-              onRemove={remove}
-            />
-          </>
+          <DataSourceList
+            sources={sources}
+            activeId={activeId}
+            busy={busy}
+            loading={loading}
+            onNew={openNew}
+            onEdit={openEdit}
+            onSetActive={doSetActive}
+            onTest={doTest}
+            onRemove={remove}
+          />
         )}
 
         {view === 'new' && newStep === 'type' && <TypeSelectStep onPick={() => setNewStep('form')} />}
